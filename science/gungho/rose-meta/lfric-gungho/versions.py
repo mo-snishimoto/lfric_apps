@@ -49,3 +49,16 @@ class vn31_t378(MacroUpgrade):
             config, ["namelist:mixing", "max_diff_factor"], "1.0"
         )
         return config, self.reports
+
+class vn31_t479(MacroUpgrade):
+    """Upgrade macro for ticket #479 by Shusuke Nishimoto."""
+
+    BEFORE_TAG = "vn3.1_t378"
+    AFTER_TAG = "vn3.1_t479"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "fullstress"], ".false."
+        )
+        return config, self.reports
