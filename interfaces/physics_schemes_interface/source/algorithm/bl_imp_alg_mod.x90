@@ -42,6 +42,7 @@ module bl_imp_alg_mod
   use stochastic_physics_config_mod, only: blpert_type, &
                                            blpert_type_theta_star, &
                                            blpert_type_theta_and_moist
+  use mixing_config_mod,             only: leonard_term, leonard_inc_with_bl
 
   implicit none
 
@@ -151,6 +152,7 @@ contains
     type( field_type ), pointer :: rhokm_w2       => null()
     type( field_type ), pointer :: tau_w2         => null()
     type( field_type ), pointer :: dw_bl          => null()
+    type( field_type ), pointer :: u_inc_leonard  => null()
     type( field_type ), pointer :: mt_inc_leonard => null()
     type( field_type ), pointer :: thetal_inc_leonard => null()
 
@@ -200,6 +202,7 @@ contains
     ! Local variables
     type( field_type ) :: u_physics_star
     type( field_type ) :: du_conv_w2, dw_conv
+    type( field_type ) :: du_leonard
     type( field_type ) :: dissip, diss_u, diss_v, diss_w
     type( field_type ) :: wind10m_w2, u10m, v10m, w10m, u10m2, v10m2
     type( field_type ) :: wind10m_neut_w2, pseudotau_w2
@@ -260,6 +263,7 @@ contains
     call turbulence_fields%get_field('rhokm_w2', rhokm_w2)
     call turbulence_fields%get_field('tau_w2', tau_w2)
     call turbulence_fields%get_field('dw_bl', dw_bl)
+    call turbulence_fields%get_field('u_inc_leonard', u_inc_leonard)
     call turbulence_fields%get_field('mt_inc_leonard', mt_inc_leonard)
     call turbulence_fields%get_field('thetal_inc_leonard', thetal_inc_leonard)
 
@@ -354,6 +358,13 @@ contains
     call tau_ssi_w2%copy_field_properties(pseudotau_w2)
     call u_star%copy_field_properties(u_physics_star)
 
+    call u_physics%copy_field_properties(du_leonard)
+    if (leonard_term .and. leonard_inc_with_bl) then
+      call invoke(X_divideby_Y(du_leonard, u_inc_leonard, dA))
+    else
+      call invoke(setval_c(du_leonard, 0.0_r_def))
+    end if
+
     call invoke(setval_c(du_bl, 0.0_r_def),                                    &
                 setval_c(dissip, 0.0_r_def),                                   &
                 setval_c(wind10m_w2, 0.0_r_def),                               &
@@ -367,7 +378,8 @@ contains
                                       tau_land_w2, tau_ssi_w2, pseudotau_w2,   &
                                       rhokm_w2, rdz, dtrdz, wetrho_in_w2,      &
                                       u_physics, u_physics_star,               &
-                                      surf_interp_w2, du_conv_w2, dw_bl, dA,   &
+                                      surf_interp_w2, du_conv_w2, du_leonard,  &
+                                      dw_bl, dA,                               &
                                       height_w1, height_w2),                   &
                 ! Map the wind back into dynamics quantities
                 inc_X_times_Y(du_bl, dA),                                      &

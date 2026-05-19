@@ -30,7 +30,7 @@ module slow_physics_alg_mod
   use mesh_mod,                  only: mesh_type
   use driver_modeldb_mod,        only: modeldb_type
   use field_parent_mod,          only: write_interface
-  use mixing_config_mod,         only: leonard_term
+  use mixing_config_mod,         only: leonard_term, leonard_inc_with_bl
   use print_field_stats_alg_mod, only: print_field_stats_alg
   use physics_config_mod,        only: microphysics_placement,         &
                                        microphysics_placement_slow,    &
@@ -287,7 +287,7 @@ contains
     ! ...for boundary layer
     type( field_type ) :: dtheta_bl, du_bl
     ! ...for Leonard term flux
-    type( field_type ) :: u_inc_leonard
+    type( field_type ), pointer :: u_inc_leonard => null()
     type( field_type ), pointer :: mt_inc_leonard => null()
     type( field_type ), pointer :: thetal_inc_leonard => null()
     ! ...for evaporation condensation
@@ -344,7 +344,6 @@ contains
     logical( kind=l_def ) :: orographic_drag_done
     logical( kind=l_def ) :: methox_done
     logical( kind=l_def ) :: boundary_layer_done
-    logical( kind=l_def ) :: leonard_term_done
     logical( kind=l_def ) :: evap_condense_done
 #ifdef UM_PHYSICS
     ! Variables for extracting horizontal number of cells from mesh
@@ -400,7 +399,6 @@ contains
     orographic_drag_done = .false.
     methox_done          = .false.
     boundary_layer_done  = .false.
-    leonard_term_done    = .false.
     evap_condense_done   = .false.
 
     !--------------------------------------------------------------------
@@ -895,15 +893,13 @@ contains
     !--------------------------------------------------------------------
 
     if (leonard_term .and. boundary_layer == boundary_layer_um ) then
-      call u%copy_field_properties(u_inc_leonard)
+      call turbulence_fields%get_field('u_inc_leonard', u_inc_leonard)
       call turbulence_fields%get_field('mt_inc_leonard', mt_inc_leonard)
       call turbulence_fields%get_field('thetal_inc_leonard', thetal_inc_leonard)
       call leonard_term_alg(mt_inc_leonard, thetal_inc_leonard,           &
                             u_inc_leonard, mr_n, theta, u, rho,           &
                             turbulence_fields, derived_fields,            &
                             dt, clock)
-      leonard_term_done = .true. ! Collect this increment later on
-
     end if
 
     !--------------------------------------------------------------------
@@ -1094,11 +1090,11 @@ contains
       call dmv_methox%field_final()
     end if
 
-    if (leonard_term_done) then
+    if (leonard_term .and. boundary_layer == boundary_layer_um .and. &
+        (.not. leonard_inc_with_bl)) then
       call invoke(inc_X_plus_Y(mr(imr_v), mt_inc_leonard), &
                   inc_X_plus_Y(dtheta, thetal_inc_leonard), &
                   inc_X_plus_Y(du, u_inc_leonard) )
-      call u_inc_leonard%field_final()
     end if
 
     if (boundary_layer_done) then
