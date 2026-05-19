@@ -60,7 +60,7 @@ module fast_physics_alg_mod
                             only: enforce_lower_bound_kernel_type
   use moisture_conservation_alg_mod, &
                             only: moisture_conservation_alg
-  use mixing_config_mod,    only: smagorinsky
+  use mixing_config_mod,    only: smagorinsky, leonard_term, leonard_inc_with_bl
   use smagorinsky_alg_mod,  only: smagorinsky_alg
   use timestepping_config_mod, &
                             only : outer_iterations
@@ -179,6 +179,11 @@ contains
     type( field_type ) :: theta_star_surf
     type( field_type ) :: qv_star_surf
 
+    ! ...for Leonard term flux
+    type( field_type ), pointer :: u_inc_leonard => null()
+    type( field_type ), pointer :: mt_inc_leonard => null()
+    type( field_type ), pointer :: thetal_inc_leonard => null()
+
     ! Temporary field to unpack from field collection
     type( field_type ), pointer :: dmv_conv => null()
     type( field_type ), pointer :: du_stph => null()
@@ -282,6 +287,16 @@ contains
     !--------------------------------------------------------------------
     if (boundary_layer == boundary_layer_um .and. &
         blayer_placement == blayer_placement_fast) then
+
+      if (leonard_term .and. leonard_inc_with_bl) then
+        call derived_fields%get_field('theta_star', theta_star)
+        call turbulence_fields%get_field('mt_inc_leonard', mt_inc_leonard)
+        call turbulence_fields%get_field('thetal_inc_leonard', &
+                                         thetal_inc_leonard)
+        call invoke(inc_X_plus_Y(mr(imr_v), mt_inc_leonard), &
+                    inc_X_plus_Y(theta_star, thetal_inc_leonard))
+      end if
+
       call du%copy_field_properties(du_bl)
       call bl_imp_alg(dtheta_bl, du_bl, mr,                               &
                       surf_heat_flux, canopy_evap, water_extraction,      &

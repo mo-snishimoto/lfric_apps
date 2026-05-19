@@ -644,6 +644,7 @@ contains
     call processor%apply(make_spec('dw_bl', main%turbulence, Wtheta))
     call processor%apply(make_spec('thetal_inc_leonard', main%turbulence, Wtheta))
     call processor%apply(make_spec('mt_inc_leonard', main%turbulence, Wtheta))
+    call processor%apply(make_spec('u_inc_leonard', main%turbulence, W2))
 
     ! 3D fields on W3 (rho) levels
     call processor%apply(make_spec('moist_flux_bl', main%turbulence, W3))
