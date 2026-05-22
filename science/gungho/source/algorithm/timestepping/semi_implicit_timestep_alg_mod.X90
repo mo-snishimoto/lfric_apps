@@ -9,7 +9,12 @@
 module semi_implicit_timestep_alg_mod
 
   use constants_mod,             only: i_def, r_def, l_def, str_def
-  use fs_continuity_mod,         only: Wtheta, W2
+  use fs_continuity_mod,         only: Wtheta, W2, W0, W1
+  use function_space_mod,        only: function_space_type
+  use function_space_collection_mod,                                           &
+                                 only: function_space_collection
+  use check_dof_relation_kernel_mod,                                           &
+                                 only: check_dof_relation_kernel_type
   use log_mod,                   only: log_event,         &
                                        log_scratch_space, &
                                        LOG_LEVEL_INFO
@@ -288,6 +293,10 @@ contains
     real( r_def )    :: dt
     real( r_def )    :: dtemp_encorr
 
+    type( function_space_type ), pointer :: w0_fs, w1_fs, w2_fs
+    type( field_type ) :: data_w0, data_w1, data_w2, data_w2_dummy
+    integer(i_def), parameter :: stencil_depth = 1
+
     ! Get pointers to field collections for use downstream
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
     model_clock => modeldb%clock
@@ -312,6 +321,19 @@ contains
     ! Get the mesh from one of the fields
     mesh => theta%get_mesh()
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    w0_fs => function_space_collection%get_fs(mesh, 0, 0, W0)
+    w1_fs => function_space_collection%get_fs(mesh, 0, 0, W1)
+    w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
+    call data_w0%initialise(w0_fs)
+    call data_w1%initialise(w1_fs)
+    call data_w2%initialise(w2_fs)
+    call data_w2_dummy%initialise(w2_fs)
+    call invoke( check_dof_relation_kernel_type( &
+                   data_w0, stencil_depth, &
+                   data_w1, stencil_depth, &
+                   data_w2, stencil_depth, &
+                   data_w2_dummy) )
 
     adv_tracer_all_outer => modeldb%fields%get_field_collection("adv_tracer_all_outer")
     adv_tracer_last_outer => modeldb%fields%get_field_collection("adv_tracer_last_outer")
