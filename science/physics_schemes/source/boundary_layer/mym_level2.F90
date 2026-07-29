@@ -95,6 +95,14 @@ real(kind=r_bl) ::                                                      &
    rf
                  ! flux Richardson Number
 
+real(kind=r_bl), parameter ::                                           &
+   ri_max = 1.0e5
+                 ! upper limit of gradient Richardson number to avoid
+                 ! loss of significance in single precision
+                 ! When Ri exceeds 10^6, stability function gets non-zero value
+                 ! even though Ri exceeds the critical Richardson number
+                 ! in single precision.
+
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
@@ -110,6 +118,7 @@ do k = 2, tke_levels
       gh(i, j, k) = - dbdz(i, j, k)
       !   Gradient Richardson number
       ri = - gh(i, j, k) / max( gm(i, j, k), 1.0e-10 )
+      ri = min( ri, ri_max )
       !   Flux Richardson number
       rf = min(ri1 * (ri + ri2 - sqrt(ri ** 2 - ri3 * ri + ri4)),              &
                rfc )

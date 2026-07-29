@@ -59,7 +59,9 @@ real(kind=r_bl), save ::                                                &
    factor
         ! common factor to all the coefficients
 
-real(kind=r_bl) ::                                                      &
+real(kind=r_bl) ::                                                             &
+   x01,                                                                        &
+       ! x with upper limit
    x02,                                                                        &
        ! x powered by 2
    x04,                                                                        &
@@ -79,6 +81,13 @@ logical, save       :: first = .true.
 real(kind=r_bl), parameter ::                                           &
    erfmax = 1.0
        ! upper limit of the value to avoid it outside domain
+
+real(kind=r_bl), parameter ::                                           &
+   argmax = 100.0
+       ! upper limit of the arguments to avoid floating overflow
+       ! Given the precision of this Taylor expansion, calculations for
+       ! |x|>1.65 are sticked to erfmax and yield no meaningful results,
+       ! so this poses no problem.
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -100,13 +109,14 @@ if (first) then
   first = .false.
 end if
 do i = 1, nn
-  x02 = x(i) * x(i)
+  x01 = max(min(x(i), argmax), -argmax)
+  x02 = x01 * x01
   x04 = x02 * x02
   x06 = x04 * x02
   x08 = x06 * x02
   x10 = x08 * x02
   x12 = x10 * x02
-  y(i) = x(i) * (                                                              &
+  y(i) = x01 * (                                                               &
         + c01                                                                  &
         - c03 * x02                                                            &
         + c05 * x04                                                            &
@@ -114,7 +124,7 @@ do i = 1, nn
         + c09 * x08                                                            &
         - c11 * x10                                                            &
         + c13 * x12)
-  if (x(i) > 0) then
+  if (x01 > 0) then
     y(i) = min(y(i), erfmax)
   else
     y(i) = max(y(i), -erfmax)

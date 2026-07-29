@@ -121,6 +121,14 @@ integer, parameter ::                                                          &
 ! with correction based on Sun and Chang (1986)
      non_local_like_length = 3
 
+! Switch to choose solver of simultaneous equations
+integer :: simeq_solver = 1
+integer, parameter ::                                                          &
+! use bi-conjugate gradient stabilized method (BCGSTAB)
+     bicgstab = 0,                                                             &
+! use forward elimination backward substitution method
+     gauss = 1
+
 !=======================================================================
 ! TKE options not in a namelist, ordered by type
 !=======================================================================

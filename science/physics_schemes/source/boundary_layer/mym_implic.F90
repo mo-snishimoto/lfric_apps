@@ -68,11 +68,12 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 do k = ken, kst + 1, -1
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
-      aa(i, j, k - 1) = aa(i, j, k - 1) * bb(i, j, k)
-      bb(i, j, k - 1) = bb(i, j, k - 1) * bb(i, j, k)                          &
-           - aa(i, j, k) * cc(i, j, k - 1)
-      qq(i, j, k - 1) = qq(i, j, k - 1) * bb(i, j, k)                          &
-           - qq(i, j, k) * cc(i, j, k - 1)
+      ! normalising so that bb = 1.0
+      aa(i, j, k) = aa(i, j, k) / bb(i, j, k)
+      qq(i, j, k) = qq(i, j, k) / bb(i, j, k)
+
+      bb(i, j, k - 1) = bb(i, j, k - 1) - cc(i, j, k - 1) * aa(i, j, k)
+      qq(i, j, k - 1) = qq(i, j, k - 1) - cc(i, j, k - 1) * qq(i, j, k)
     end do
   end do
 end do
@@ -87,8 +88,7 @@ end do
 do k = kst + 1, ken
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
-      qq(i, j, k) = (qq(i, j, k) - aa(i, j, k) *                               &
-           qq(i, j, k - 1)) / bb(i, j, k)
+      qq(i, j, k) = qq(i, j, k) - aa(i, j, k) * qq(i, j, k - 1)
     end do
   end do
 end do

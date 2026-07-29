@@ -32,11 +32,12 @@ subroutine mym_solve_simeq(                                                    &
       tsq, qsq, cov)
 
 use atm_fields_bounds_mod, only: tdims
-use mym_option_mod, only: tke_levels
+use mym_option_mod, only: tke_levels, simeq_solver, bicgstab, gauss
 use parkind1, only: jprb, jpim
 use yomhook, only: lhook, dr_hook
 use mym_solve_simeq_bcgstab_mod, only: mym_solve_simeq_bcgstab
 use mym_solve_simeq_lud_mod, only: mym_solve_simeq_lud
+use mym_solve_simeq_gauss_mod, only: mym_solve_simeq_gauss
 implicit none
 
 ! Intent IN Variables
@@ -173,23 +174,32 @@ do j = tdims%j_start, tdims%j_end
       pp_cq_k(k)  = pp_cq(i, j, k)  * cq_scale
     end do
 
-    call  mym_solve_simeq_bcgstab(                                             &
-            max_itr, eps,                                                      &
-            qq_tsq_k, qq_qsq_k, qq_cov_k,                                      &
-            aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                             &
-            aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                             &
-            aa_cov_k, bb_cov_k, cc_cov_k,                                      &
-            pp_ct_k, pp_cq_k,                                                  &
-            tsq_k, qsq_k, cov_k, endflag)
+    if (simeq_solver == bicgstab) then
+      call  mym_solve_simeq_bcgstab(                                           &
+              max_itr, eps,                                                    &
+              qq_tsq_k, qq_qsq_k, qq_cov_k,                                    &
+              aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                           &
+              aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                           &
+              aa_cov_k, bb_cov_k, cc_cov_k,                                    &
+              pp_ct_k, pp_cq_k,                                                &
+              tsq_k, qsq_k, cov_k, endflag)
 
-    if (endflag < 0) then
-      ! if failed to converge, solve eqs. by LU decomposition
-      call mym_solve_simeq_lud(                                                &
-            qq_tsq_k, qq_qsq_k, qq_cov_k,                                      &
-            aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                             &
-            aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                             &
-            aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                    &
-            tsq_k, qsq_k, cov_k)
+      if (endflag < 0) then
+        ! if failed to converge, solve eqs. by LU decomposition
+        call mym_solve_simeq_lud(                                              &
+              qq_tsq_k, qq_qsq_k, qq_cov_k,                                    &
+              aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                           &
+              aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                           &
+              aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                  &
+              tsq_k, qsq_k, cov_k)
+      end if
+    else if (simeq_solver == gauss) then
+      call mym_solve_simeq_gauss(                                              &
+              qq_tsq_k, qq_qsq_k, qq_cov_k,                                    &
+              aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                           &
+              aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                           &
+              aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                  &
+              tsq_k, qsq_k, cov_k)
     end if
 
     ! set the values into the original arrays.

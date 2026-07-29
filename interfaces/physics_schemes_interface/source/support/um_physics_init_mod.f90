@@ -44,6 +44,9 @@ module um_physics_init_mod
                                         local_above_tkelvs,                    &
                                         my_force_initialize,                   &
                                         my_ini_dbdz_min_in => my_ini_dbdz_min, &
+                                        my_simeq_solver,                       &
+                                        my_simeq_solver_bicgstab,              &
+                                        my_simeq_solver_gauss,                 &
                                         a_ent_shr, a_ent_2_in => a_ent_2,      &
                                         cbl_opt, cbl_opt_conventional,         &
                                         cbl_opt_standard, cbl_opt_adjustable,  &
@@ -399,7 +402,7 @@ contains
          my_ini_dbdz_min, l_adv_turb_field, l_my_condense, l_shcu_buoy,    &
          shcu_levels, wb_ng_max, my_lowest_pd_surf, no_pd_surf, businger,  &
          bh1991, l_my_prod_adj, my_z_limit_elb, tke_cm_mx, tke_cm_fa,      &
-         tke_dlen, ddf_length
+         tke_dlen, ddf_length, simeq_solver, bicgstab, gauss
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
@@ -906,6 +909,12 @@ contains
 
         if (bdy_tke_in == bdy_tke_my3) then
           l_my_prod_adj = my_prod_adj
+          select case (my_simeq_solver)
+            case (my_simeq_solver_bicgstab)
+              simeq_solver = bicgstab
+            case (my_simeq_solver_gauss)
+              simeq_solver = gauss
+          end select
         end if
 
         my_z_limit_elb = 1.0e10_r_bl

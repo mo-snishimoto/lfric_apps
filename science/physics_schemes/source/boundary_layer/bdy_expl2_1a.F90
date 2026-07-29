@@ -530,6 +530,11 @@ integer  ::                                                                    &
    l
 ! LOCAL Loop counter for land points
 
+real(kind=r_bl), parameter :: max_ri = 0.01_r_bl*sqrt(huge(1.0_r_bl))
+                 ! Maximum (absolute) Richardson number which ensures that
+                 ! the stability functions (~ri^2) remain real-valued at
+                 ! the given model precision
+
 character(len=*), parameter ::  RoutineName = 'BDY_EXPL2_1A'
 
 integer(kind=jpim), parameter :: zhook_in  = 0
@@ -887,6 +892,7 @@ if (l_subfilter_horiz .or. l_subfilter_vert .or.                               &
       do i = pdims%i_start, pdims%i_end
         ri(i, j, k) = dbdz(i, j, k)                                            &
                       / ( dvdzm(i, j, k) * dvdzm(i ,j, k) )
+        ri(i, j, k) = max(min(ri(i,j,k),max_ri),-max_ri)
       end do
     end do
   end do
