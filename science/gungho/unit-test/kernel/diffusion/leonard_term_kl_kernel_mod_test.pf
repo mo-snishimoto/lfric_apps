@@ -38,7 +38,8 @@ contains
                                            feign_mixing_config
     use finite_element_config_mod,  only : cellshape_quadrilateral,       &
                                            coord_system_xyz, coord_space_wchi
-    use mixing_config_mod,          only : method_3d_smag,                &
+    use mixing_config_mod,          only : method_1a_3d_smag,             &
+                                           method_9c_3d_smag,             &
                                            smag_l_calc, smag_l_calc_UseDx
 
     implicit none
@@ -49,13 +50,15 @@ contains
                               viscosity_mu  = 0.0_r_def,         &
                               smagorinsky   = .false.,           &
                               mix_factor    = 0.2_r_def,         &
-                              method        = method_3d_smag,    &
+                              method_1a     = method_1a_3d_smag, &
+                              method_9c     = method_9c_3d_smag, &
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 4.0_r_def,         &
                               conservative_diffusion = .false.,  &
                               density_weighted = .false.,        &
-                              max_diff_factor = 1.0_r_def )
+                              max_diff_factor = 1.0_r_def,       &
+                              fullstress    = .false. )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &

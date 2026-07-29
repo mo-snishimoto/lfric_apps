@@ -8,6 +8,7 @@ prime_mesh_name='dynamics',
 topology='fully_periodic',
 /
 &blayer
+bl_scheme='9c',
 a_ent_2=0.056,
 a_ent_shr=1.6,
 bl_levels=50,

@@ -78,6 +78,10 @@ module create_physics_prognostics_mod
   use cloud_config_mod,               only : scheme,                            &
                                              scheme_pc2
   use convection_config_mod,          only : cv_scheme, cv_scheme_comorph
+  use blayer_config_mod,              only : bl_scheme, bl_scheme_9c, &
+                                             bl_scheme_1a, bdy_tke, &
+                                             bdy_tke_my3, bdy_tke_deardorff, &
+                                             adv_turb_field, shcu_buoy
   use external_forcing_config_mod,    only : theta_forcing_nudging,             &
                                              theta_forcing,                     &
                                              wind_forcing_nudging,              &
@@ -634,8 +638,6 @@ contains
     end if
     call processor%apply(make_spec('zh', main%turbulence,                       &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('wvar', main%turbulence,                     &
-        ckp=turb_gen_mixph))
     call processor%apply(make_spec('gradrinr', main%turbulence, Wtheta))
 
     ! 2D fields, don't need checkpointing
@@ -649,14 +651,20 @@ contains
         twod=.true.))
     call processor%apply(make_spec('blend_height_tq', main%turbulence, W3,      &
         twod=.true., is_int=.true.))
-    call processor%apply(make_spec('zh_nonloc', main%turbulence, W3, twod=.true.))
     call processor%apply(make_spec('zhsc', main%turbulence, W3, twod=.true.))
-    call processor%apply(make_spec('bl_weight_1dbl', main%turbulence, W3,       &
-        twod=.true.))
     call processor%apply(make_spec('level_ent', main%turbulence, W3, twod=.true.,     &
         is_int=.true.))
     call processor%apply(make_spec('level_ent_dsc', main%turbulence, W3, twod=.true., &
         is_int=.true.))
+
+    ! 2D fields, necessary only for 9C scheme
+    is_empty = (bl_scheme == bl_scheme_1a)
+    call processor%apply(make_spec('zh_nonloc', main%turbulence, W3,           &
+        twod=.true., empty = is_empty))
+    call processor%apply(make_spec('bl_weight_1dbl', main%turbulence, W3,      &
+        twod=.true., empty = is_empty))
+    call processor%apply(make_spec('wvar', main%turbulence,                    &
+        ckp=turb_gen_mixph, empty = is_empty))
 
     ! Space for the 7 BL types
     ! vector_space => function_space_collection%get_fs(twod_mesh, 0, 0, W3,
@@ -670,7 +678,6 @@ contains
     call processor%apply(make_spec('lmix_bl', main%turbulence, Wtheta))
     call processor%apply(make_spec('dsldzm', main%turbulence, Wtheta))
     call processor%apply(make_spec('mix_len_bm', main%turbulence, Wtheta))
-    call processor%apply(make_spec('tke_bl', main%turbulence, Wtheta))
     call processor%apply(make_spec('rhokm_bl', main%turbulence, Wtheta))
     call processor%apply(make_spec('dtrdz_tq_bl', main%turbulence, Wtheta))
     call processor%apply(make_spec('dw_bl', main%turbulence, Wtheta))
@@ -705,6 +712,54 @@ contains
         mult='entrainment_levels', twod=.true.))
     call processor%apply(make_spec('ent_zrzi_dsc', main%turbulence, W3,         &
         mult='entrainment_levels', twod=.true.))
+
+    ! 3D fields, might need checkpointing
+    if (bl_scheme == bl_scheme_1a) then
+      checkpoint_flag = .true.
+      advection_flag = adv_turb_field
+    else
+      checkpoint_flag = .false.
+      advection_flag = .false.
+    end if
+    call processor%apply(make_spec('tke_bl', main%turbulence, Wtheta,          &
+        adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
+
+    ! Fields, necessary only for 1A scheme
+
+    ! 2D fields, might need checkpointing
+    if (bl_scheme == bl_scheme_1a .and. shcu_buoy) then
+      checkpoint_flag = .true.
+    else
+      checkpoint_flag = .false.
+    end if
+    call processor%apply(make_spec('zhpar_shcu', main%turbulence, W3,          &
+        twod=.true., ckp=checkpoint_flag, empty = (.not. shcu_buoy)))
+
+    ! 3D fields, might need checkpointing
+    if (bl_scheme == bl_scheme_1a .and. bdy_tke /= bdy_tke_deardorff) then
+      is_empty = .false.
+      ! Checkpointing of tsq, qsq and cov are necessary even in level2.5 scheme
+      ! because previous value of those are used in partial condensation scheme.
+      checkpoint_flag = .true.
+      if (bdy_tke == bdy_tke_my3) then
+        advection_flag = adv_turb_field
+      else
+        advection_flag = .false.
+      end if
+    else
+      is_empty = .true.
+      checkpoint_flag = .false.
+      advection_flag = .false.
+    end if
+    call processor%apply(make_spec('tsq_bl', main%turbulence, Wtheta,          &
+        adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag,    &
+        empty = is_empty))
+    call processor%apply(make_spec('qsq_bl', main%turbulence, Wtheta,          &
+        adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag,    &
+        empty = is_empty))
+    call processor%apply(make_spec('cov_bl', main%turbulence, Wtheta,          &
+        adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag,    &
+        empty = is_empty))
 
     !========================================================================
     ! Fields owned by the convection scheme

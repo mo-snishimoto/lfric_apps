@@ -37,7 +37,9 @@ contains
     use sci_chi_transform_mod,     only : init_chi_transforms
     use feign_config_mod,          only : feign_finite_element_config,   &
                                           feign_mixing_config
-    use mixing_config_mod,         only : method_3d_smag, smag_l_calc,   &
+    use mixing_config_mod,         only : method_1a_3d_smag,       &
+                                          method_9c_3d_smag,       &
+                                          smag_l_calc,             &
                                           smag_l_calc_UseDx
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz, coord_space_wchi
@@ -50,13 +52,15 @@ contains
                               viscosity_mu  = 0.0_r_def,         &
                               smagorinsky   = .false.,           &
                               mix_factor    = 0.2_r_def,         &
-                              method        = method_3d_smag,    &
+                              method_1a     = method_1a_3d_smag, &
+                              method_9c     = method_9c_3d_smag, &
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 1.0_r_def,         &
                               conservative_diffusion = .false.,  &
                               density_weighted = .false.,        &
-                              max_diff_factor = 1.0_r_def )
+                              max_diff_factor = 1.0_r_def,       &
+                              fullstress    = .false. )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &

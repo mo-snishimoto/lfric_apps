@@ -31,3 +31,28 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn32_t46(MacroUpgrade):
+    """Upgrade macro for ticket #46 by Shusuke Nishimoto."""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t46"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-boundary_layer
+        boundary_layer = self.get_setting_value(
+            config, ["namelist:section_choice", "boundary_layer"]
+        )
+        mixing_method = self.get_setting_value(
+            config, ["namelist:mixing", "method"]
+        )
+        self.remove_setting(config, ["namelist:mixing", "method"])
+        if boundary_layer == "'um'":
+            self.add_setting(
+                config, ["namelist:blayer", "bl_scheme"], "'9c'"
+            )
+            self.add_setting(
+                config, ["namelist:mixing", "method_9c"], mixing_method
+            )
+
+        return config, self.reports
