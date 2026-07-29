@@ -41,6 +41,7 @@ use um_types, only: r_bl
 implicit none
 
 character(len=*), parameter, private :: ModuleName = 'MYM_TURBULENCE_MOD'
+
 contains
 
 subroutine mym_turbulence(                                                     &
@@ -54,18 +55,19 @@ subroutine mym_turbulence(                                                     &
 ! INOUT fields
       qke, tsq, qsq, cov, dfm, dfh,                                            &
 ! OUT fields
-      dfu_cg, dfv_cg, dft_cg, dfq_cg)
+      dfu_cg, dfv_cg, dft_cg, dfq_cg, leonard_kl_tke)
 
 use atm_fields_bounds_mod, only: tdims, pdims, tdims_l, tdims_s
 use bl_diags_mod, only: strnewbldiag
 use conversions_mod, only: pi
-use mym_const_mod, only: e1c,e2c,e3c,e4c,e5c,a1,a2,c1,b2,qke_max,              &
+use mym_const_mod, only: e1c,e2c,e3c,e4c,e5c,a1,a2,c1,c5,b2,qke_max,           &
       coef_trbvar_diff,coef_trbvar_diff_tke,two_thirds,a1_2,                   &
       b1,one_third,cc3
 use mym_option_mod, only:                                                      &
       my_lowest_pd_surf, l_my_extra_level, my_z_extra_fact,                    &
       l_my_prod_adj, my_prod_adj_fact, tke_levels,                             &
-      l_my_lowest_pd_surf_tqc
+      l_my_lowest_pd_surf_tqc, l_leonard_tke,                                  &
+      deardorff, mymodel2, mymodel25, mymodel3
 
 use model_domain_mod, only: model_type, mt_single_column
 
@@ -77,6 +79,7 @@ use mym_length_mod, only: mym_length
 use mym_level2_mod, only: mym_level2
 use mym_update_covariance_mod, only: mym_update_covariance
 use mym_update_fields_mod, only: mym_update_fields
+
 implicit none
 
 ! Intent IN Variables
@@ -85,16 +88,18 @@ integer, intent(in) ::                                                         &
                  ! Max. no. of "boundary" levels
    levflag
                  ! to indicate the level of the MY model
+                 ! 0: Deardorff
+                 ! 1: level 2
                  ! 2: level 2.5
                  ! 3: level 3
 
 real(kind=r_bl), intent(in) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
         bl_levels+1),                                                          &
-                 ! Z_UV(*,K) is height of u level k
+                 ! Z_UV(*,k) is height of u level k
    z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         bl_levels),                                                            &
-                 ! Z_TQ(*,K) is height of theta level k.
+                 ! Z_TQ(*,k) is height of theta level k.
    vq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                  ! A buoyancy param on theta level k-1
    vt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
@@ -109,42 +114,42 @@ real(kind=r_bl), intent(in) ::                                          &
                  ! from surface, 'E'.
                  ! Defined on rho levels.
    ftl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-                 ! FTL(,K) contains net turbulent
-                 ! sensible heat flux into layer K
+                 ! FTL(,k) contains net turbulent
+                 ! sensible heat flux into layer k
                  ! from below; so FTL(,1) is the
                  ! surface sensible heat, H. (W/m2)
                  ! Defined on rho levels.
    wb_ng(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          tke_levels),                                                          &
                  ! buoyancy flux related to the skewness
-                 ! on theta K-1 levels
+                 ! on theta k-1 levels
    dbdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:tke_levels),                                                         &
                  ! Buoyancy gradient across layer
                  ! interface interpolated to theta levels.
-                 ! (:,:,K) repserents the value on theta level K-1
+                 ! (:,:,k) represents the value on theta level k-1
    dtldz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          2:bl_levels),                                                         &
                  ! gradient of TL across layer
                  ! interface interpolated to theta levels.
-                 ! (:,:,K) repserents the value on theta level K-1
+                 ! (:,:,k) represents the value on theta level k-1
    dqwdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          2:bl_levels),                                                         &
                  ! gradient of QW across layer
                  ! interface interpolated to theta levels.
-                 ! (:,:,K) repserents the value on theta level K-1
+                 ! (:,:,k) represents the value on theta level k-1
    dvdzm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          2:bl_levels),                                                         &
                  ! Modulus of wind shear at theta levels.
-                 ! (:,:,K) repserents the value on theta level K-1
+                 ! (:,:,k) represents the value on theta level k-1
    dudz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:bl_levels),                                                          &
                  ! Gradient of u at theta levels.
-                 !(:,:,K) repserents the value on theta level K-1
+                 !(:,:,k) represents the value on theta level k-1
    dvdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:bl_levels),                                                          &
                  ! Gradient of v at theta levels.
-                 !(:,:,K) repserents the value on theta level K-1
+                 !(:,:,k) rerserents the value on theta level k-1
    delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
                  ! IN delta_x used by Smagorinsky
    r_mosurf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),              &
@@ -162,26 +167,26 @@ real(kind=r_bl), intent(in) ::                                          &
 real(kind=r_bl), intent(in out) ::                                      &
    qke(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,            &
        bl_levels),                                                             &
-                 ! twice of TKE (denoted to q**2) on theta level K-1
+                 ! twice of TKE (denoted to q**2) on theta level k-1
    tsq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        bl_levels),                                                             &
                  ! Self covariance of liquid potential temperature
-                 ! (thetal'**2) defined on theta levels K-1
+                 ! (thetal'**2) defined on theta levels k-1
    qsq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        bl_levels),                                                             &
                  ! Self covariance of total water
-                 ! (qw'**2) defined on theta levels K-1
+                 ! (qw'**2) defined on theta levels k-1
    cov(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        bl_levels),                                                             &
                  ! Correlation between thetal and qw
-                 ! (thetal'qw') defined on theta levels K-1
+                 ! (thetal'qw') defined on theta levels k-1
    dfm(tdims_s%i_start:tdims_s%i_end,tdims_s%j_start:tdims_s%j_end,            &
        bl_levels),                                                             &
                  ! diffusion coefficient for momentum
-                 ! on theta level K-1
+                 ! on theta level k-1
    dfh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end, bl_levels)
                  ! diffusion coefficient for scalars
-                 ! on theta level K-1
+                 ! on theta level k-1
 
 !  Declaration of BL diagnostics.
 type (strnewbldiag), intent(in out) :: BL_diag
@@ -191,19 +196,23 @@ real(kind=r_bl), intent(out) ::                                         &
    dfu_cg(tdims_s%i_start:tdims_s%i_end,tdims_s%j_start:tdims_s%j_end,         &
           2:bl_levels),                                                        &
                  ! counter gradient term for u
-                 ! on theta level K-1
+                 ! on theta level k-1
    dfv_cg(tdims_s%i_start:tdims_s%i_end,tdims_s%j_start:tdims_s%j_end,         &
           2:bl_levels),                                                        &
                  ! counter gradient term for v
-                 ! on theta level K-1
+                 ! on theta level k-1
    dft_cg(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
           2:bl_levels),                                                        &
                  ! counter gradient term for TL
-                 ! on theta level K-1
+                 ! on theta level k-1
    dfq_cg(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
           2:bl_levels)
                  ! counter gradient term for QW
-                 ! on theta level K-1
+                 ! on theta level k-1
+real(kind=r_bl), intent(out) ::                                                &
+         leonard_kl_tke( tdims%i_start:tdims%i_end,                            &
+                         tdims%j_start:tdims%j_end,                            &
+                         1:bl_levels, 2 )
 
 ! Local variables
 ! Scalar
@@ -262,31 +271,31 @@ real(kind=r_bl) ::                                                      &
 
 real(kind=r_bl) ::                                                      &
    gm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
-                 ! square of wind shear on theta level K-1
+                 ! square of wind shear on theta level k-1
                  ! (a denominator of gradient Richardson number)
    gh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
-                 ! - buoyancy gradient on theta level K-1
+                 ! - buoyancy gradient on theta level k-1
                  ! (a numerator of gradient Richardson number)
    sm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                  ! Non-dimensional diffusion coefficients for
                  ! momentum derived by level 2 scheme
-                 ! defined on theta level K-1
+                 ! defined on theta level k-1
    sh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                  ! Non-dimensional diffusion coefficients for
                  ! scalars derived by level 2 scheme
-                 ! define on theta level K-1
+                 ! define on theta level k-1
    qkw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
         tke_levels),                                                           &
-                 ! q=sqrt(qke) on theta level K-1
+                 ! q=sqrt(qke) on theta level k-1
    elsq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         tke_levels),                                                           &
                  ! square of mixing length
    gmel(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         tke_levels),                                                           &
-                 ! GM times the mixing length
+                 ! GM times the mixing length squared
    ghel(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         tke_levels),                                                           &
-                 ! GH times the mixing length
+                 ! GH times the mixing length squared
    qdiv(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         tke_levels),                                                           &
                  ! factor for flux correction: sqrt(q3sq/q2sq)
@@ -441,6 +450,7 @@ integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
 
+
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 if (l_my_extra_level) then
   k_start = 1
@@ -448,12 +458,30 @@ else
   k_start = 2
 end if
 
+if (l_leonard_tke) then
+  do k = 1, bl_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+        leonard_kl_tke(i,j,k,1) = 1.0
+        leonard_kl_tke(i,j,k,2) = 1.0
+      end do
+    end do
+  end do
+end if
+
 call mym_level2(                                                               &
-      bl_levels,dbdz, dvdzm,gm, gh, sm, sh)
+      bl_levels, dbdz, dvdzm, gm, gh, sm, sh)
 
 call mym_length(                                                               &
       tdims%i_end,tdims%j_end,tdims_l%halo_i,tdims_l%halo_j,bl_levels,         &
       qke, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, qkw, el)
+
+
+! This section calculates 'growing turbulence' correction
+! qdiv = 1-alpha in UMDP 25,
+! limited sm and sh
+! and diagnostic Cu, Cv Cw, relative u,v,w contributions to TKE at level 2.5.
+! Note, these appear not to be used apart from Cw which is used to bound C3sq.
 
 do k = 2, tke_levels
   do j = tdims%j_start, tdims%j_end
@@ -466,13 +494,27 @@ do k = 2, tke_levels
       ghel(i, j, k) = gh(i, j, k) * elsq(i, j, k)
 
       ! adjust SM and SH by SQRT(q3sq / q2sq)
+      ! qdiv is 1-alpha in Sec 2.7.2
+      ! q2sq is L2 (equilibrium) q2 (or u_t in PAC notation) so
+      ! check is q2 is less than equilibrium, i.e. growing.
       if ( q3sq(i, j, k) < q2sq ) then
+        ! Growing turbulence corrections as per Sec. 2.7.2
         qdiv(i, j, k) = sqrt(q3sq(i, j, k) / q2sq)
         sm(i, j, k) = sm(i, j, k) * qdiv(i, j, k)
         sh(i, j, k) = sh(i, j, k) * qdiv(i, j, k)
 
+        ! Constants needed for final SM, SH
+        ! Note gm is just shear and gh bouyancy gradient at this point, so
+        ! GM = gm L^2 / u_t^2 =  gmel / u_t^2
+        ! Hence these are L3 computation if qkw prognostic.
+        ! e1 etc. have units of u_t^2 (i.e. q3sq)
+        ! reden (the denominator) units of (u_t^2)^2
+        ! sm, sh are properly dimensionless.
+                ! e1= u_t^2[ 1 - (1-alpha^2) 9.0 a1 a2 (1-c2) G_H
+                !     + (1-alpha^2) 6.0 a1^2 G_M ] = u_t^2 E1
         e1   = q3sq(i, j, k)                                                   &
              - e1c * ghel(i, j, k) * qdiv(i, j, k) ** 2
+                ! e2 = u_t^2[ 1 - (1-alpha^2) 9.0 a1 a2 (1-c2) G_H]
         e2(i, j, k)   = q3sq(i, j, k)                                          &
              - e2c * ghel(i, j, k) * qdiv(i, j, k) ** 2
         e3 = e1 + e3c * ghel(i, j, k) * qdiv(i, j, k) ** 2
@@ -482,6 +524,7 @@ do k = 2, tke_levels
         eden = max(eden, 1.0e-20)
         reden = 1.0 / eden
       else
+        ! Constants needed for final SM, SH
         e1 = q3sq(i, j, k) - e1c * ghel(i, j, k)
         e2(i, j, k) = q3sq(i, j, k) - e2c * ghel(i, j, k)
         e3 = e1 + e3c * ghel(i, j, k)
@@ -489,8 +532,8 @@ do k = 2, tke_levels
         eden = e2(i, j, k) * e4 + e3 * e5c * gmel(i, j, k)
         eden = max(eden, 1.0e-20)
         reden = 1.0 / eden
-
         qdiv(i, j, k) = 1.0
+        ! L3 sm, sh if L3 qkw
         sm(i, j, k) = q3sq(i, j, k) * a1 * (e3 - 3.0 * c1 *e4)                 &
                            * reden
         sh(i, j, k) = q3sq(i, j, k)                                            &
@@ -504,14 +547,32 @@ do k = 2, tke_levels
            * (e4 - 0.5 * e4c * ghel(i, j, k) * qdiv(i, j, k) ** 2)
       cw25(i, j, k) = cu25(i, j, k) * e1
       cu25(i, j, k) = 1.0 - cv25(i, j, k) - cw25(i, j, k)
+
     end do
   end do
 end do
-
-if ( levflag == 3 ) then
+if (l_leonard_tke) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
+        e1 = (el(i, j, k) / delta_smag(i,j))**2
+        leonard_kl_tke(i,j,k,1) = 36.0 * a2 *  e1                              &
+                                  * (sm(i, j, k) + (1.0 - c5) * sh(i, j, k) )
+        leonard_kl_tke(i,j,k,2) = 72.0 * a1 * e1  * (1.0 - c5) * sm(i, j, k)
+      end do
+    end do
+  end do
+endif
+! This section primarily computes L3 non-local terms, gamma_theta and gamma_q
+! and corresponding perturbations to diffusion coefficients, dfm, dfh.
+
+if ( levflag == mymodel3 ) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+
+        ! At L2, L2.5 C_theta  = b2 * sh
+
         t2sq = qdiv(i, j, k) * b2 * elsq(i, j, k)                              &
                      * sh(i, j, k) * dtldz(i, j, k) ** 2
         r2sq = qdiv(i, j, k) * b2 * elsq(i, j, k)                              &
@@ -524,18 +585,28 @@ if ( levflag == 3 ) then
 
         c3sq = sign( min( abs(c3sq), sqrt(t3sq*r3sq) ), c3sq )
 
+        ! t2sq = vt <theta_L'^2> + vq <theta_L' q_t'> = <theta_L' theta_v'>_2.5
         t2sq = vt(i, j, k) * t2sq + vq(i, j, k) * c2sq(i, j, k)
+        ! r2sq = vt <theta_L' q_t'>  + vq <q_t'^2> = <q_t' theta_v'>_2.5
         r2sq = vt(i, j, k) * c2sq(i, j, k) + vq(i, j, k) * r2sq
+        ! c2sq = vt <theta_L' theta_v'>  + vq <q_t'theta_v'> = <theta_v'^2>_2.5
         c2sq(i, j, k) = max(vt(i, j, k) * t2sq + vq(i, j, k) * r2sq,           &
                             0.0)
+        ! t3sq = vt <theta_L'^2> + vq <theta_L' q_t'> = <theta_L' theta_v'>
         t3sq = vt(i, j, k) * t3sq + vq(i, j, k) * c3sq
+        ! r3sq = vt <theta_L' q_t'>  + vq <q_t'^2> = <q_t' theta_v'>
         r3sq = vt(i, j, k) * c3sq + vq(i, j, k) * r3sq
+        ! c3sq = vt <theta_L' theta_v'>  + vq <q_t'theta_v'> = <theta_v'^2>
         c3sq = max(vt(i, j, k) * t3sq + vq(i, j, k) * r3sq, 0.0)
 
         !  Limitation on q, instead of L/q
+        ! Note, gh = -db/dz so this applies when db/dz > 0.
+        ! We could use -ghel here.
         if ( q3sq(i, j, k) < -gh(i, j, k) * elsq(i, j, k)) then
           q3sq(i, j, k) = -elsq(i, j, k) * gh(i, j, k)
         end if
+
+        ! Some duplication from above.
 
         ! Limitation on c3sq (0.12 =< cw =< 0.76)
         ! e2 = q^2 * phi2'
@@ -549,7 +620,7 @@ if ( levflag == 3 ) then
         eden = e2(i, j, k) * e4                                                &
                         + e3 *e5c*gmel(i, j, k) * qdiv(i, j, k)**2
 
-        ! wden = numerator in the square braket in (10a) in NN2006
+        ! wden = numerator in the square bracket in (10a) in NN2006
         !        times (1-c3) * (g/thetav)**2 * GH
         wden = cc3*gtr(i, j, k) **2                                            &
                  * elsq(i, j, k)**2 / elsq(i, j, k)                            &
@@ -570,22 +641,33 @@ if ( levflag == 3 ) then
           end if
         end if
 
+        ! e1 has dimensions q^2
         e1   = e2(i, j, k) + e5c*gmel(i, j, k) * qdiv(i, j, k) ** 2
+        ! eden has dimensions q^4
         eden = max( eden, 1.0e-20 )
+
+        ! reden has dimensions q^-4
         reden = 1.0 / eden
 
-        e6c  = 3.0 * a2 *cc3 * gtr(i, j, k)                                    &
-                                   * elsq(i, j, k) / elsq(i, j, k)
+        ! Surely elsq cancels?
+!        e6c  = 3.0 * a2 *cc3 * gtr(i, j, k)                                    &
+!                                   * elsq(i, j, k) / elsq(i, j, k)
+        e6c  = 3.0 * a2 *cc3 * gtr(i, j, k)
 
         ! Calculate each term in  Gamma_theta
+        ! coef is E_H g/theta_0 /ut^2 in UMDP 25
         coef = - e1 * qdiv(i, j, k) * e6c * reden
+        ! Hence all Gamma coefficients are actually ~ut^(-2)
         gamt_tsq(i, j, k) = coef * vt(i, j, k)
         gamt_cov(i, j, k) = coef * vq(i, j, k)
+        ! This appears to be missing a vt but its built into t2sq
+        ! -Gamma_t_2.5  or T_theta
         gamt_res(i, j, k) = - coef * t2sq
 
         ! Calculate each term in  Gamma_q
         gamq_qsq(i, j, k) = coef * vq(i, j, k)
         gamq_cov(i, j, k) = coef * vt(i, j, k)
+        ! -Gamma_q_2.5
         gamq_res(i, j, k) = - coef * r2sq
 
         ! for Sm' and Sh'd(Theta_V)/dz
@@ -677,10 +759,12 @@ if ( levflag == 3 ) then
     do k = 2, tke_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
+          ! Non-local difference term:
+          ! E_H g/theta_0 /ut^2 (<theta_L' theta_v'> - <theta_L' theta_v'>_2.5)
           gamt(i, j, k) = gamt_tsq(i, j, k) * tsq(i, j, k)                     &
                         + gamt_cov(i, j, k) * cov(i, j, k)                     &
                         + gamt_res(i, j, k)
-
+          ! E_H g/theta_0 /ut^2 (<q_t' theta_v'> - <q_t' theta_v'>_2.5)
           gamq(i, j, k) = gamq_qsq(i, j, k) * qsq(i, j, k)                     &
                         + gamq_cov(i, j, k) * cov(i, j, k)                     &
                         + gamq_res(i, j, k)
@@ -693,6 +777,9 @@ if ( levflag == 3 ) then
     end do
   end if ! IF L_MY_PROD_ADJ
 
+  ! gamt appears to be E_H/q^2 g/theta_v (beta_t (thetaL'_3^2 - thetaL'_2^2)
+  !                                      +beta_q (theta_L'qt'_3 - thetaL'qt'_2))
+  ! as per UMDP 25 eq.2.257
   ! Calculate production terms
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
@@ -701,32 +788,55 @@ if ( levflag == 3 ) then
         elq = el(i, j, k) * qkw(i, j, k)
         elh = elq * qdiv(i, j, k)
 
+        ! TKE production
+        ! Using Level 2.5 coefficients
+        ! wb_ng is buoyancy flux related to the skewness (input)
+        ! Level 2 production
         pdk(i, j, k) = elq * (sm(i, j, k) * gm(i, j, k)                        &
                                 + sh(i, j, k) * gh(i, j, k))                   &
                                 + wb_ng(i,j,k)
 
+                ! pdt = elh * (sh * dtldz - Gamma_t_2.5) * dtl/dz
+                !     = (P_theta^0 + R_theta)/2
         pdt(i, j, k) = elh                                                     &
                 * (sh(i, j, k) * dtldz(i, j, k) + gamt_res(i, j, k))           &
                 * dtldz(i, j, k)
+                ! pdt_tsq = (1-alpha) L u_t E_H g/theta_0 beta_t / ut^2 dtl/dz
+                !         = T_theta/2
         pdt_tsq(i, j, k) = elh * gamt_tsq(i, j, k) * dtldz(i, j, k)
+                ! pdt_cov = (1-alpha) L u_t E_H g/theta_0 beta_q / ut^2 dtl/dz = p^tc/2
         pdt_cov(i, j, k) = elh * gamt_cov(i, j, k) * dtldz(i, j, k)
 
+
+                ! pdq = elh * (sh * dqt/dz - Gamma_q_2.5) * dqt/dz
+                !     = (P_q^0 + R_q)/2
         pdq(i, j, k) = elh                                                     &
              * (sh(i, j, k) * dqwdz(i, j, k) + gamq_res(i, j, k))              &
              * dqwdz(i, j, k)
+                ! pdq_qsq = (1-alpha) L u_t E_H g/theta_0  beta_q /ut^2 dqt/dz = Q_q/2
         pdq_qsq(i, j, k) = elh * gamq_qsq(i, j, k) * dqwdz(i, j, k)
+                ! pdq_cov = (1-alpha) L u_t E_H g/theta_0  beta_t /ut^2 dqt/dz = p^qc/2
         pdq_cov(i, j, k) = elh * gamq_cov(i, j, k) * dqwdz(i, j, k)
 
+                ! pdc = 0.5 * elh * ((sh * dtldz - Gamma_t_2.5) * dqt/dz
+                !                  + (sh * dqt/dz - Gamma_q_2.5) * dtl/dz)
+                !     = (P_c^0 + R_c)/2
         pdc(i, j, k) = 0.5 * elh                                               &
              * ((sh(i, j, k) * dtldz(i, j, k)                                  &
                      + gamt_res(i, j, k)) * dqwdz(i, j, k)                     &
               + (sh(i, j, k) * dqwdz(i, j, k)                                  &
                      + gamq_res(i, j, k)) * dtldz(i, j, k))
 
+                ! pdc_tsq = (1-alpha) L u_t E_H g/theta_0 beta_t / ut^2 * dqt/dz
+                !         = p^ct/2
         pdc_tsq(i, j, k) = elh                                                 &
                          * gamt_tsq(i, j, k) * dqwdz(i, j, k) * 0.5
+                ! pdc_qsq = (1-alpha) L u_t E_H g/theta_0  beta_q /ut^2 dtl/dz = p^cq/2
         pdc_qsq(i, j, k) = elh                                                 &
                          * gamq_qsq(i, j, k) * dtldz(i, j, k) * 0.5
+                ! pdc_cov = 0.5 * (1-alpha) L u_t (
+                !              E_H g/theta_0 beta_q / ut^2 dqt/dz
+                !            + E_H g/theta_0  beta_t /ut^2 dtl/dz) = C_c/2
         pdc_cov(i, j, k) = 0.5 * elh                                           &
                          * (gamt_cov(i, j, k) * dqwdz(i, j, k)                 &
                           + gamq_cov(i, j, k) * dtldz(i, j, k))
@@ -774,7 +884,7 @@ else  ! level 2.5
       end do
     end do
   end do
-end if  ! test if levflag == 3
+end if  ! test if levflag == mymodel3
 
 ! Overwrite production terms by ones calculated with surface fluxes
 if (my_lowest_pd_surf > 0) then
@@ -890,7 +1000,7 @@ if (BL_diag%l_tke_dissp) then
   end do
 end if
 
-if (levflag == 3) then
+if (levflag == mymodel3) then
   ! Integrate the covariances
 
   if (imp_mode == full_impl) then
@@ -992,7 +1102,7 @@ if (levflag == 3) then
   end if  ! if imp_mode == FULL_IMPL
 else  ! level 2.5
   ! In level 2.5, tsq, qsq, cov are diagnosed assuming balance between
-  ! prodcution and dissipation.
+  ! production and dissipation.
   do k = k_start, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -1009,7 +1119,7 @@ else  ! level 2.5
   end do
 end if
 
-if (levflag >= 2) then
+if (levflag >= mymodel25) then
   ! predict qke
   if (my_lowest_pd_surf > 0) then
     k_start_cor = k_start + 1
@@ -1017,7 +1127,7 @@ if (levflag >= 2) then
     k_start_cor = k_start
   end if
 
-  if (levflag == 3 .and.                                                       &
+  if (levflag == mymodel3 .and.                                                &
          (imp_mode == half_impl .or. imp_mode == full_impl)) then
     ! add correction terms evaluated with integrated tsq, qsq and cov
     do k = k_start_cor, tke_levels
@@ -1035,6 +1145,8 @@ if (levflag >= 2) then
           c3sq = max(vt(i, j, k) * t3sq + vq(i, j, k) * r3sq, 0.0)
 
           elq = el(i, j, k) * qkw(i, j, k)
+          ! Non-local TKE production from shear.
+          ! S_M' G_M = E_M (L/u_t^2 g/theta)^2
           smd(i, j, k) = smd_coef(i, j, k) * (c3sq - c2sq(i, j, k))
 
           pdk(i, j, k) = pdk(i, j, k) + elq                                    &
@@ -1053,7 +1165,7 @@ if (levflag >= 2) then
         end do
       end do
     end do
-  end if ! if test levflag == 3
+  end if ! if test levflag == mymodel3
 
   do k = k_start, tke_levels
     do j = tdims%j_start, tdims%j_end
@@ -1067,6 +1179,7 @@ if (levflag >= 2) then
 
   call mym_update_fields(                                                      &
         bl_levels, coef_trbvar_diff_tke, z_uv, z_tq, dfm, rp, bp, qke)
+
 else
    ! level 2
    ! diagnose qke
@@ -1079,7 +1192,7 @@ else
       end do
     end do
   end do
-end if  ! test if levflag >= 2
+end if  ! test if levflag >= mymodel25
 
 do k = 1, tke_levels
   do j = tdims%j_start, tdims%j_end

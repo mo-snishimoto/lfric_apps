@@ -49,7 +49,7 @@ subroutine mym_length(                                                         &
 
 use mym_const_mod, only: my_alpha4, one_third, elt_min, my_alpha1,             &
                          my_alpha2, my_alpha3
-use mym_option_mod, only: tke_levels, my_z_limit_elb, l_3dtke
+use mym_option_mod, only: tke_levels, my_z_limit_elb, l_3dtke, l_use_l_sq
 use parkind1, only: jprb, jpim
 use planet_constants_mod, only: vkman
 use yomhook, only: lhook, dr_hook
@@ -114,8 +114,11 @@ real(kind=r_bl) ::                                                      &
                  ! mixing length related to surface (L_S)
    ell,                                                                        &
                  ! additional mixing length for 3DTKE scheme (L_L)
+   ellt,                                                                       &
+                 ! temp mixing length for 3DTKE scheme
    zeta
                  ! non-dimensional length (height over MO length)
+
 real(kind=r_bl) ::                                                      &
    elt(row_length, rows),                                                      &
                  ! mixing length related to vertical distribution
@@ -177,6 +180,7 @@ alp32 = my_alpha3 / my_alpha2
 do k = 2, tke_levels
   do j = 1, rows
     do i = 1, row_length
+
       if (dbdz(i, j, k) > 0.0) then
         rbv = 1.0 / sqrt(dbdz(i, j, k))
         elb = my_alpha2 * qkw(i, j, k) * rbv                                   &
@@ -199,7 +203,12 @@ do k = 2, tke_levels
       end if
       if (l_3dtke) then
         ell = mix_factor * delta_smag(i,j)
-        el(i, j, k) = elb / ( elb / elt(i, j) + elb / els + elb / ell + 1.0)
+        if (l_use_l_sq) then
+          ellt = elb / ( elb / elt(i, j) + elb / els + 1.0)
+          el(i, j, k) = sqrt(1.0/(1.0/(ellt*ellt) + 1.0/(ell*ell)))
+        else
+          el(i, j, k) = elb / ( elb / elt(i, j) + elb / els + elb / ell + 1.0)
+        end if
       else
         el(i, j, k) = elb / ( elb / elt(i, j) + elb / els + 1.0)
       end if

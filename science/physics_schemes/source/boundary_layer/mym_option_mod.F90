@@ -16,7 +16,7 @@
 !---------------------------------------------------------------------
 module mym_option_mod
 
-use  missing_data_mod, only: rmdi, imdi
+use missing_data_mod, only: rmdi, imdi
 use control_max_sizes, only: max_bl_levels
 use um_types, only: r_bl
 
@@ -31,7 +31,9 @@ implicit none
 integer :: bdy_tke = imdi ! suggested mymodel3
 integer, parameter ::                                                          &
 ! the first order scheme
-     deardorff = 1,                                                            &
+     deardorff = 0,                                                            &
+! the improved Mellor-Yamada level 2 model
+     mymodel2  = 1,                                                            &
 ! the improved Mellor-Yamada level 2.5 model
      mymodel25 = 2,                                                            &
 ! the improved Mellor-Yamada level 3 model
@@ -120,6 +122,12 @@ integer, parameter ::                                                          &
      ddf_length = 2,                                                           &
 ! with correction based on Sun and Chang (1986)
      non_local_like_length = 3
+
+! 20 If TRUE, use coefficient calculated in mym_turbulence for Leonard term.
+logical :: l_leonard_tke = .false.
+
+! 21 If TRUE, use squared form of length-scale blending.
+logical :: l_use_l_sq = .false.
 
 ! Switch to choose solver of simultaneous equations
 integer :: simeq_solver = 1

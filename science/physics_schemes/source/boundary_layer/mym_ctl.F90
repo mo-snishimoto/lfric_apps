@@ -52,7 +52,7 @@ subroutine mym_ctl(                                                            &
 ! INOUT fields
       e_trb, tsq_trb, qsq_trb, cov_trb, rhokm, rhokh, zhpar_shcu,              &
 ! OUT fields
-      visc_m, visc_h, rhogamu, rhogamv, rhogamt, rhogamq)
+      visc_m, visc_h, rhogamu, rhogamv, rhogamt, rhogamq, leonard_kl_tke)
 
 use atm_fields_bounds_mod, only: tdims, pdims, tdims_l, tdims_s
 use bl_diags_mod, only: strnewbldiag
@@ -69,6 +69,7 @@ use mym_const_set_mod, only: mym_const_set
 use mym_initialize_mod, only: mym_initialize
 use mym_shcu_buoy_mod, only: mym_shcu_buoy
 use mym_turbulence_mod, only: mym_turbulence
+
 implicit none
 
 ! Intent In Variables
@@ -84,10 +85,10 @@ integer, intent(in) ::                                                         &
 real(kind=r_bl), intent(in) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
         bl_levels+1),                                                          &
-                  ! Z_UV(*,K) is height of u level k
+                  ! Z_UV(*,k) is height of u level k
    z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         bl_levels),                                                            &
-                  ! Z_TQ(*,K) is height of theta level k.
+                  ! Z_TQ(*,k) is height of theta level k.
    u_p(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),         &
                   ! U on P-grid.
    v_p(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),         &
@@ -131,8 +132,8 @@ real(kind=r_bl), intent(in) ::                                          &
                   ! from surface, 'E'.
                   ! defined on rho levels
    ftl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-                  ! FTL(,K) contains net turbulent
-                  ! sensible heat flux into layer K
+                  ! FTL(,k) contains net turbulent
+                  ! sensible heat flux into layer k
                   ! from below; so FTL(,1) is the
                   ! surface sensible heat, H. (W/m2)
                   ! defined on rho levels
@@ -140,29 +141,29 @@ real(kind=r_bl), intent(in) ::                                          &
           2:bl_levels),                                                        &
                   ! gradient of TL across layer
                   ! interface interpolated to theta levels.
-                  ! (:,:,K) repserents the value on theta level K-1
+                  ! (:,:,k) represents the value on theta level k-1
    dqwdzm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
           2:bl_levels),                                                        &
                   ! gradient of QW across layer
                   ! interface interpolated to theta levels.
-                  ! (:,:,K) repserents the value on theta level K-1
+                  ! (:,:,k) represents the value on theta level k-1
    dudz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:bl_levels),                                                          &
                   ! Gradient of u at theta levels.
-                  !(:,:,K) repserents the value on theta level K-1
+                  !(:,:,k) represents the value on theta level k-1
    dvdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:bl_levels),                                                          &
                   ! Gradient of v at theta levels.
-                  !(:,:,K) repserents the value on theta level K-1
+                  !(:,:,k) represents the value on theta level k-1
    dbdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:bl_levels),                                                          &
                   ! Buoyancy gradient across layer
                   ! interface interpolated to theta levels.
-                  ! (:,:,K) repserents the value on theta level K-1
+                  ! (:,:,k) represents the value on theta level k-1
    dvdzm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          2:bl_levels),                                                         &
                   ! Modulus of wind shear at theta levels.
-                  ! (:,:,K) represents the value on theta level K-1
+                  ! (:,:,k) represents the value on theta level k-1
    delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
                   ! IN delta_x used by Smagorinsky
    p_theta_levels(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,         &
@@ -183,32 +184,38 @@ real(kind=r_bl), intent(in) ::                                          &
 real(kind=r_bl), intent(in out) ::                                      &
    e_trb(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
           bl_levels),                                                          &
-                  ! TKE defined on theta levels K-1
+                  ! TKE defined on theta levels k-1
    tsq_trb(tdims%i_start:tdims%i_end,                                          &
            tdims%j_start:tdims%j_end,bl_levels),                               &
                   ! Self covariance of liquid potential temperature
-                  ! (thetal'**2) defined on theta levels K-1
+                  ! (thetal'**2) defined on theta levels k-1
    qsq_trb(tdims%i_start:tdims%i_end,                                          &
            tdims%j_start:tdims%j_end,bl_levels),                               &
                   ! Self covariance of total water
-                  ! (qw'**2) defined on theta levels K-1
+                  ! (qw'**2) defined on theta levels k-1
    cov_trb(tdims%i_start:tdims%i_end,                                          &
            tdims%j_start:tdims%j_end,bl_levels),                               &
                   ! Correlation between thetal and qw
-                  ! (thetal'qw') defined on theta levels K-1
+                  ! (thetal'qw') defined on theta levels k-1
    rhokm(tdims_s%i_start:tdims_s%i_end,                                        &
          tdims_s%j_start:tdims_s%j_end,bl_levels),                             &
                   ! Exchange coeffs for momentum
-                  ! between K and K-1 on rho levels.
-                  ! i.e. the coeffs are defined on theta level K-1.
+                  ! between k and k-1 on rho levels.
+                  ! i.e. the coeffs are defined on theta level k-1.
    rhokh(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
          bl_levels),                                                           &
                   ! Exchange coeffs for scalars
-                  ! between K and K-1 on theta levels.
+                  ! between k and k-1 on theta levels.
                   ! i.e. the coeffs are defined on rho levels
    zhpar_shcu(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
                   ! Height of mixed layer used to evaluate
                   ! the non-gradient buoyancy flux
+! Note e_trb (etc.) is created with  dimensions
+!     (tdims%i_start:tdims%i_end, tdims%j_start:tdims%j_end,
+!      tdims%k_start:tdims%k_end)
+! in set_atm_fields, and tdims%k_start:tdims%k_end = 0:model_levels
+! However, it is declared 0:bl_levels in atmos_physics2 and passed to
+! ni_bl_ctl thence here.
 
 !  Declaration of BL diagnostics.
 type (strnewbldiag), intent(in out) :: BL_diag
@@ -220,11 +227,11 @@ real(kind=r_bl), intent(out) ::                                         &
    rhogamu(tdims_s%i_start:tdims_s%i_end,                                      &
            tdims_s%j_start:tdims_s%j_end,2:bl_levels),                         &
                   ! Counter gradient terms for TAUX
-                  ! defined at theta level K-1
+                  ! defined at theta level k-1
    rhogamv(tdims_s%i_start:tdims_s%i_end,                                      &
            tdims_s%j_start:tdims_s%j_end,2:bl_levels),                         &
                   ! Counter gradient terms for TAUY
-                  ! defined at theta level K-1
+                  ! defined at theta level k-1
    rhogamt(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                &
            2:bl_levels),                                                       &
                   ! Counter gradient terms for FTL
@@ -233,6 +240,10 @@ real(kind=r_bl), intent(out) ::                                         &
            2:bl_levels)
                   ! Counter gradient terms for FQW
                   ! defined at rho levels
+real(kind=r_bl), intent(out) ::                                                &
+         leonard_kl_tke( tdims%i_start:tdims%i_end,                            &
+                         tdims%j_start:tdims%j_end,                            &
+                         1:bl_levels, 2 )
 
 ! Local Variables
 integer ::                                                                     &
@@ -262,54 +273,54 @@ real(kind=r_bl) ::                                                      &
                   ! reciprocal of Monin-Obukhov length
    qke(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,            &
                             bl_levels),                                        &
-                  ! twice of TKE (denoted to q**2) on theta level K-1
+                  ! twice of TKE (denoted to q**2) on theta level k-1
    dbdz_l(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
           2:tke_levels),                                                       &
                   ! Buoyancy gradient across layer
                   ! interface interpolated to theta levels.
-                  ! (:,:,K) repserents the value on theta level K-1
+                  ! (:,:,k) represents the value on theta level k-1
    vt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                   ! Buoyancy parameter for FTL (excluding g/thetav)
-                  ! on theta level K-1
+                  ! on theta level k-1
    vq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                   ! Buoyancy parameter for FQW (excluding g/thetav)
-                  ! on theta level K-1
+                  ! on theta level k-1
    tv(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
-                  ! Virtual temperature on theta level K-1
+                  ! Virtual temperature on theta level k-1
    exner(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          tke_levels),                                                          &
-                  ! exner function on theta level K-1
+                  ! exner function on theta level k-1
    gtr(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        tke_levels),                                                            &
-                  ! G/thetav on theta level K-1
+                  ! G/thetav on theta level k-1
    rhokh_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
             bl_levels),                                                        &
-                  ! exchange coeffs for scalars on theta level K-1
+                  ! exchange coeffs for scalars on theta level k-1
    rhogamt_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,             &
               2:bl_levels),                                                    &
-                  ! counter gradient term for FTL on theta level K-1
+                  ! counter gradient term for FTL on theta level k-1
    rhogamq_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,             &
               2:bl_levels),                                                    &
-                  ! counter gradient term for FQW on theta level K-1
+                  ! counter gradient term for FQW on theta level k-1
    q1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                   ! normalized excessive water from the saturation
-                  ! on theta level K-1
+                  ! on theta level k-1
    cld(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        tke_levels),                                                            &
                   ! cloud fraction derived by the bi-normal
-                  ! distribution on theta level K-1
+                  ! distribution on theta level k-1
    ql(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                     &
       tke_levels),                                                             &
                   ! condensed liquid water derived by the bi-normal
-                  ! distribution on theta level K-1
+                  ! distribution on theta level k-1
    wb_ng(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          tke_levels),                                                          &
                   ! buoyancy flux related to the skewness
-                  ! on theta level K-1
+                  ! on theta level k-1
    frac_shcu(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,              &
              tke_levels)
                   ! cloud fraction corrected by shallow cumulus
-                  ! process on theta level K-1
+                  ! process on theta level k-1
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -329,7 +340,6 @@ end do
 
 if (l_first) then
   call mym_const_set
-
   ! IF the first value of e_trb has been set to be missing by the
   ! reconfiguration, the initialization for the whole domain
   ! is essential.
@@ -506,9 +516,6 @@ if (my_lowest_pd_surf > 0) then
         bl_levels, z_tq, r_mosurf, pmz, phh)
 end if
 
-  ! Calculate diffusion coefficients and counter gradient terms,
-  ! and integrate the prognostic variables.
-
 call mym_turbulence(                                                           &
 ! IN levels/switches
         bl_levels, levflag, BL_diag,                                           &
@@ -520,7 +527,7 @@ call mym_turbulence(                                                           &
 ! INOUT fields
         qke, tsq_trb, qsq_trb, cov_trb, rhokm, rhokh_tq,                       &
 ! OUT fields
-        rhogamu, rhogamv, rhogamt_tq, rhogamq_tq)
+        rhogamu, rhogamv, rhogamt_tq, rhogamq_tq, leonard_kl_tke)
 
 if (l_3dtke) then
   do k = 1, bl_levels-1
@@ -533,7 +540,7 @@ if (l_3dtke) then
   end do
 end if
 
-  ! multiply the density
+! multiply the density
 do k = 2, bl_levels
   do j = tdims%j_start, tdims%j_end
     do i = tdims%i_start, tdims%i_end

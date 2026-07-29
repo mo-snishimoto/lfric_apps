@@ -54,6 +54,7 @@ contains
                               mix_factor    = 0.2_r_def,         &
                               method_1a     = method_1a_3d_smag, &
                               method_9c     = method_9c_3d_smag, &
+                              leonard_tke   = .false.,           &
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 1.0_r_def,         &

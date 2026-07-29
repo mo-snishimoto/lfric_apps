@@ -57,7 +57,7 @@ subroutine bdy_expl2_1a (                                                      &
 ! OUT data required for tracer mixing :
  kent, we_lim, t_frac, zrzi, kent_dsc, we_lim_dsc, t_frac_dsc, zrzi_dsc,       &
 ! OUT data required elsewhere in UM system :
- zhsc,ntdsc,nbdsc,wstar,wthvs,uw0,vw0                                          &
+ zhsc,ntdsc,nbdsc,wstar,wthvs,uw0,vw0,leonard_kl_tke                           &
      )
 
 use atm_fields_bounds_mod, only: pdims, tdims, tdims_l,                        &
@@ -76,6 +76,7 @@ use planet_constants_mod, only: cp, g, vkman
 use turb_diff_mod, only:                                                       &
     l_subfilter_vert, l_subfilter_horiz, mix_factor,                           &
     turb_startlev_vert, turb_endlev_vert
+use umPrintMgr, only: umPrint, umMessage
 use water_constants_mod, only: lc
 
 use parkind1, only: jprb, jpim
@@ -116,24 +117,24 @@ real(kind=r_bl), intent(in) ::                                          &
                                  ! IN RDZ(,1) is the reciprocal of
                                  !    the height of level 1, i.e. of
                                  !    the middle of layer 1.  For
-                                 !    K > 1, RDZ(,K) is the
+                                 !    k > 1, RDZ(,k) is the
                                  !    reciprocal of the vertical
-                                 !    distance from level K-1 to
-                                 !    level K.
+                                 !    distance from level k-1 to
+                                 !    level k.
  rdz_charney_grid(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,         &
                   bl_levels),                                                  &
                                  ! IN RDZ(,1) is the reciprocal of
                                  !       the height of level 1,
                                  !       i.e. of the middle of layer 1
-                                 !       For K > 1, RDZ(,K) is the
+                                 !       For k > 1, RDZ(,k) is the
                                  !       reciprocal of the vertical
-                                 !       distance from level K-1 to
-                                 !       level K.
+                                 !       distance from level k-1 to
+                                 !       level k.
  z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
-                                 ! IN Z_tq(*,K) is height of full
+                                 ! IN Z_tq(*,k) is height of full
                                  !    level k.
  z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels+1),        &
-                                  ! OUT Z_uv(*,K) is height of half
+                                  ! OUT Z_uv(*,k) is height of half
                                   ! level k-1/2.
  u_p(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),           &
                                  ! IN U on P-grid.
@@ -155,7 +156,7 @@ real(kind=r_bl), intent(in) ::                                          &
                                  ! IN Land fraction on all tiles
  p_rho_levs(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,       &
             pdims_s%k_start:bl_levels+1),                                      &
-                              ! IN p_rho_levs(*,K) is pressure at half
+                              ! IN p_rho_levs(*,k) is pressure at half
                               ! level k-1/2.
  pstar(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
                                   ! IN Surface pressure (Pascals).
@@ -235,8 +236,8 @@ real(kind=r_bl), intent(in out) ::                                      &
 !                                     FQW(,1) is total water flux
 !                                     from surface, 'E'.
    ftl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-                                   ! INOUT FTL(,K) contains net turbulent
-!                                     sensible heat flux into layer K
+                                   ! INOUT FTL(,k) contains net turbulent
+!                                     sensible heat flux into layer k
 !                                     from below; so FTL(,1) is the
 !                                     surface sensible heat, H. (W/m2)
    rhokh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
@@ -283,11 +284,11 @@ real(kind=r_bl), intent(out) ::                                         &
  rhogamu(pdims_s%i_start:pdims_s%i_end,                                        &
          pdims_s%j_start:pdims_s%j_end,2:bl_levels),                           &
                   ! Counter gradient terms for u
-                  ! defined at theta level K-1
+                  ! defined at theta level k-1
  rhogamv(pdims_s%i_start:pdims_s%i_end,                                        &
          pdims_s%j_start:pdims_s%j_end,2:bl_levels),                           &
                   ! Counter gradient terms for v
-                  ! defined at theta level K-1
+                  ! defined at theta level k-1
  tau_fd_x(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,         &
           bl_levels),                                                          &
  tau_fd_y(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,         &
@@ -372,6 +373,10 @@ real(kind=r_bl), intent(out) ::                                         &
   vw0(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
                            ! OUT V-component of surface wind stress
                            !     on P-grid
+real(kind=r_bl), intent(out) ::                                                &
+         leonard_kl_tke( tdims%i_start:tdims%i_end,                            &
+                         tdims%j_start:tdims%j_end,                            &
+                         1:bl_levels, 2 )
 !-----------------------------------------------------------------------
 !   Symbolic constants (parameters) reqd in top-level routine :-
 
@@ -454,7 +459,7 @@ real(kind=r_bl) ::                                                      &
    dtldz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
       2:bl_levels),                                                            &
                               ! TL+gz/cp gradient between
-                              ! levels K and K-1
+                              ! levels k and k-1
    dqwdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
       2:bl_levels),                                                            &
                               ! QW gradient between
@@ -462,20 +467,20 @@ real(kind=r_bl) ::                                                      &
           2:bl_levels),                                                        &
                   ! gradient of TL across layer
                   ! interface interpolated to theta levels.
-                  ! (:,:,K) repserents the value on theta level K-1
+                  ! (:,:,k) represents the value on theta level k-1
    dqwdzm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
           2:bl_levels),                                                        &
                   ! gradient of QW across layer
                   ! interface interpolated to theta levels.
-                  ! (:,:,K) repserents the value on theta level K-1
+                  ! (:,:,k) represents the value on theta level k-1
    dudz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:bl_levels),                                                          &
                   ! Gradient of u at theta levels.
-                  !(:,:,K) repserents the value on theta level K-1
+                  !(:,:,k) represents the value on theta level k-1
    dvdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:bl_levels)
                   ! Gradient of v at theta levels.
-                  !(:,:,K) repserents the value on theta level K-1
+                  !(:,:,k) repserents the value on theta level k-1
 
 integer ::                                                                     &
  ntml_local(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
@@ -681,7 +686,7 @@ end do
 
 
 ! Calculate `buoyancy' gradient, DBDZ, on theta-levels
-! NOTE: DBDZ(K) is on theta-level K-1
+! NOTE: DBDZ(k) is on theta-level k-1
 do k = 3, bl_levels
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
@@ -820,8 +825,7 @@ end if      ! sg_orog_mixing
 if (bdy_tke == mymodel25 .or. bdy_tke == mymodel3) then
   call mym_ctl(                                                                &
   !in levels/switches
-            bl_levels, bdy_tke,                                                &
-            BL_diag,                                                           &
+            bl_levels, bdy_tke, BL_diag,                                       &
   !in fields
             z_uv,z_tq, u_p, v_p, qw, tl, t, q, qcl, qcf, bq_gb, bt_gb,         &
             rho_mix, rho_wet_tq, fqw, ftl,                                     &
@@ -830,7 +834,7 @@ if (bdy_tke == mymodel25 .or. bdy_tke == mymodel3) then
   ! inout
             e_trb, tsq_trb, qsq_trb, cov_trb, rhokm, rhokh, zhpar_shcu,        &
   ! out
-            visc_m, visc_h, rhogamu, rhogamv, rhogamt, rhogamq)
+            visc_m, visc_h, rhogamu, rhogamv, rhogamt, rhogamq, leonard_kl_tke)
 else if (bdy_tke == deardorff) then
   call ddf_ctl(                                                                &
   ! IN levels/switches
@@ -1137,6 +1141,9 @@ end do
 !-----------------------------------------------------------------------
 ! Calculation of explicit fluxes of T,Q
 !-----------------------------------------------------------------------
+write(umMessage,*)'Entering mym_ex_flux_tq.'
+call umPrint(umMessage)
+
 call mym_ex_flux_tq(                                                           &
       bl_levels,                                                               &
       tl, qw, rhokh, rhogamt, rhogamq, rdz_charney_grid,                       &

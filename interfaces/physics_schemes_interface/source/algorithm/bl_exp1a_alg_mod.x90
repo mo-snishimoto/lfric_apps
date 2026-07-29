@@ -68,12 +68,15 @@ contains
   !>@param[in,out] convection_fields   Fields for convection scheme
   !>@param[in]     cloud_fields        Fields for cloud scheme
   !>@param[in,out] surface_fields      Fields for surface scheme
+  !>@param[out]    leonard_klm_tke     Leonard term coefficient for momentum
+  !>@param[out]    leonard_klh_tke     Leonard term coefficient for heat
   !>@param[in]     model_clock         Time in the model
   subroutine bl_exp1a_alg(config, theta, rho, exner, mr_n,                &
                           derived_fields,                                 &
                           microphysics_fields, orography_fields,          &
                           turbulence_fields, convection_fields,           &
                           cloud_fields, surface_fields,                   &
+                          leonard_klm_tke, leonard_klh_tke,               &
                           model_clock)
 
     use bl_exp1a_kernel_mod, only: bl_exp1a_kernel_type
@@ -92,6 +95,8 @@ contains
     type( field_collection_type ), intent(in)    :: convection_fields
     type( field_collection_type ), intent(in)    :: cloud_fields
     type( field_collection_type ), intent(in)    :: surface_fields
+    type( field_type ), intent( out )     :: leonard_klm_tke
+    type( field_type ), intent( out )     :: leonard_klh_tke
 
     class( model_clock_type ), intent(in) :: model_clock
 
@@ -330,6 +335,8 @@ contains
     call theta%copy_field_properties(rhogamw_wth)
     call rho%copy_field_properties(fd_taux)
     call rho%copy_field_properties(fd_tauy)
+    call theta%copy_field_properties(leonard_klm_tke)
+    call rho%copy_field_properties(leonard_klh_tke)
 
     ncells = mesh%get_last_edge_cell()
 
@@ -360,6 +367,7 @@ contains
                                       tke_bl, tsq_bl, qsq_bl, cov_bl,          &
                                       zhpar_shcu,                              &
                                       rhogamu_w3, rhogamv_w3,                  &
+                                      leonard_klm_tke, leonard_klh_tke,        &
                                       bq_bl, bt_bl,                            &
                                       moist_flux_bl, heat_flux_bl, dtrdz_tq_bl,&
                                       fd_taux, fd_tauy, sea_u_current_ptr,     &

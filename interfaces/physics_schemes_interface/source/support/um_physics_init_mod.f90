@@ -44,6 +44,7 @@ module um_physics_init_mod
                                         local_above_tkelvs,                    &
                                         my_force_initialize,                   &
                                         my_ini_dbdz_min_in => my_ini_dbdz_min, &
+                                        use_l_sq,                              &
                                         my_simeq_solver,                       &
                                         my_simeq_solver_bicgstab,              &
                                         my_simeq_solver_gauss,                 &
@@ -222,7 +223,8 @@ module um_physics_init_mod
                                         method_1a_3d_smag,             &
                                         method_1a_3dte_mk1,            &
                                         mix_factor_in => mix_factor,   &
-                                        leonard_term
+                                        leonard_term,                  &
+                                        leonard_tke
 
   use radiation_config_mod,      only : topography, topography_horizon
 
@@ -402,7 +404,8 @@ contains
          my_ini_dbdz_min, l_adv_turb_field, l_my_condense, l_shcu_buoy,    &
          shcu_levels, wb_ng_max, my_lowest_pd_surf, no_pd_surf, businger,  &
          bh1991, l_my_prod_adj, my_z_limit_elb, tke_cm_mx, tke_cm_fa,      &
-         tke_dlen, ddf_length, simeq_solver, bicgstab, gauss
+         tke_dlen, ddf_length, l_use_l_sq, l_leonard_tke,                  &
+         simeq_solver, bicgstab, gauss
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
@@ -1754,6 +1757,8 @@ contains
           ! between tke_levels and bl_levels, however, hardwire
           ! this option off for now.
           blending_option   = off
+
+          l_use_l_sq        = use_l_sq
         end select
 
       end if
@@ -1773,6 +1778,7 @@ contains
     ! Leonard terms on or off
     !-----------------------------------------------------------------------
     l_leonard_term = leonard_term
+    l_leonard_tke = leonard_tke
 
     !-----------------------------------------------------------------------
     ! UM Random Parameter scheme settings

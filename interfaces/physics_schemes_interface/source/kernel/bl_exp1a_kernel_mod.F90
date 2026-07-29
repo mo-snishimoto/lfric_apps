@@ -19,7 +19,7 @@ module bl_exp1a_kernel_mod
   use empty_data_mod,            only: empty_real_data
   use fs_continuity_mod,         only: W3, Wtheta
   use kernel_mod,                only: kernel_type
-  use mixing_config_mod,         only: smagorinsky, fullstress
+  use mixing_config_mod,         only: smagorinsky, fullstress, leonard_tke
   use blayer_config_mod,         only: shcu_buoy, bdy_tke, bdy_tke_deardorff
   use mym_option_mod,            only: tke_levels
   use microphysics_config_mod,   only: prog_tnuc
@@ -36,7 +36,7 @@ module bl_exp1a_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp1a_kernel_type
     private
-    type(arg_type) :: meta_args(82) = (/                                       &
+    type(arg_type) :: meta_args(84) = (/                                       &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! rho_in_wth
@@ -81,6 +81,8 @@ module bl_exp1a_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! zhpar_shcu_2d
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! rhogamu_w3
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! rhogamv_w3
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! leonard_klm_tke
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! leonard_klh_tke
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! bq_bl
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! bt_bl
          arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, W3),                       &! moist_flux_bl
@@ -178,6 +180,8 @@ contains
   !> @param[in,out] zhpar_shcu_2d          Mixed layer height for non-gradient buoyancy flux
   !> @param[in,out] rhogamu_w3             Counter Gradient Flux Term for U
   !> @param[in,out] rhogamv_w3             Counter Gradient Flux Term for V
+  !> @param[in,out] leonard_klm_tke        Leonard term coefficient for momentum
+  !> @param[in,out] leonard_klh_tke        Leonard term coefficient for heat
   !> @param[in,out] bq_bl                  Buoyancy parameter for moisture
   !> @param[in,out] bt_bl                  Buoyancy parameter for heat
   !> @param[in,out] moist_flux_bl          Vertical moisture flux on BL levels
@@ -279,6 +283,8 @@ contains
                            zhpar_shcu_2d,                       &
                            rhogamu_w3,                          &
                            rhogamv_w3,                          &
+                           leonard_klm_tke,                     &
+                           leonard_klh_tke,                     &
                            bq_bl,                               &
                            bt_bl,                               &
                            moist_flux_bl,                       &
@@ -377,6 +383,7 @@ contains
                                                            tsq_bl,             &
                                                            qsq_bl,             &
                                                            cov_bl,             &
+                                                           leonard_klm_tke,    &
                                                            bq_bl, bt_bl,       &
                                                            dtrdz_tq_bl,        &
                                                            gradrinr
@@ -386,7 +393,8 @@ contains
                                                            heat_flux_bl,       &
                                                            fd_taux, fd_tauy,   &
                                                            rhogamu_w3,         &
-                                                           rhogamv_w3
+                                                           rhogamv_w3,         &
+                                                           leonard_klh_tke
     real(kind=r_def), dimension(undf_w3),  intent(in)   :: exner_in_w3,        &
                                                            u_in_w3, v_in_w3,   &
                                                            height_w3, rdz_w3
@@ -480,6 +488,8 @@ contains
                                                   dtrdz_charney_grid
 
     real(r_bl), dimension(seg_len,1,2:bl_levels) :: rhogamu, rhogamv
+
+    real(r_bl), dimension(seg_len,1,bl_levels,2) :: leonard_kl_tke
 
     ! profile fields from level 0 upwards
     real(r_bl), dimension(seg_len,1,0:nlayers) :: p_theta_levels, w,         &
@@ -822,7 +832,7 @@ contains
     ! OUT data required for tracer mixing :
       kent, we_lim, t_frac, zrzi, kent_dsc, we_lim_dsc, t_frac_dsc, zrzi_dsc,  &
     ! OUT data required elsewhere in UM system :
-      zhsc,ntdsc,nbdsc,wstar,wthvs,uw0,vw0                                     &
+      zhsc,ntdsc,nbdsc,wstar,wthvs,uw0,vw0,leonard_kl_tke                      &
       )
 
     if ( smagorinsky ) then
@@ -981,6 +991,21 @@ contains
           cov_bl(map_wth(1,i) + k-1) = cov_trb(i,1,k)
         end do
       end do
+      if (leonard_tke) then
+        do k = 1, bl_levels
+          do i = 1, seg_len
+            leonard_klm_tke(map_wth(1,i) + k) = leonard_kl_tke(i,1,k,2)
+            leonard_klh_tke(map_w3(1,i) + k-1) = leonard_kl_tke(i,1,k,1)
+          end do
+        end do
+        do i = 1, seg_len
+          leonard_klm_tke(map_wth(1,i)) = 0.0_r_def
+          do k = bl_levels+1, nlayers
+            leonard_klm_tke(map_wth(1,i) + k) = 0.0_r_def
+            leonard_klh_tke(map_w3(1,i) + k-1) = 0.0_r_def
+          end do
+        end do
+      end if
     end if
 
     if (shcu_buoy) then
