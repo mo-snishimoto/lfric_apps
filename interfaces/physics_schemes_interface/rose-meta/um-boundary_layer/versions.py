@@ -55,4 +55,50 @@ class vn32_t46(MacroUpgrade):
                 config, ["namelist:mixing", "method_9c"], mixing_method
             )
 
+        conf_hash = {}
+        conf_list = ["field_names", "enforce_min_value", "min_value"]
+        # read list type namelists
+        for conf in conf_list:
+            conf_val = self.get_setting_value(
+                config, ["namelist:transport", conf]
+            ).split(",")
+            conf_hash[conf] = []
+            for value in conf_val:
+                if "*" in value:
+                    num = int(value.split("*")[0])
+                    val = value.split("*")[1]
+                    for i in range(num):
+                        conf_hash[conf].append(val)
+                else:
+                    conf_hash[conf].append(value)
+        # modify namelist value according to condition
+        if (
+            "'con_tracer'" in conf_hash["field_names"]
+            and "'adv_tracer'" in conf_hash["field_names"]
+        ):
+            i = conf_hash["field_names"].index("'con_tracer'")
+            j = conf_hash["field_names"].index("'adv_tracer'")
+            conf_hash["field_names"][i] = "'pos_tracer'"
+            conf_hash["field_names"][j] = "'gen_tracer'"
+            conf_hash["enforce_min_value"][i] = ".true."
+            conf_hash["enforce_min_value"][j] = ".false."
+            conf_hash["min_value"][i] = "0.0"
+            conf_hash["min_value"][j] = "-99999999.0"
+        elif "'con_tracer'" in conf_hash["field_names"]:
+            i = conf_hash["field_names"].index("'con_tracer'")
+            conf_hash["field_names"][i] = "'pos_tracer'"
+            conf_hash["enforce_min_value"][i] = ".true."
+            conf_hash["min_value"][i] = "0.0"
+        elif "'adv_tracer'" in conf_hash["field_names"]:
+            i = conf_hash["field_names"].index("'adv_tracer'")
+            conf_hash["field_names"][i] = "'pos_tracer'"
+            conf_hash["enforce_min_value"][i] = ".true."
+            conf_hash["min_value"][i] = "0.0"
+        # change namelist value
+        for conf in conf_list:
+            self.change_setting_value(
+                config, ["namelist:transport", conf], ",".join(conf_hash[conf])
+            )
+
+
         return config, self.reports

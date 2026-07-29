@@ -708,9 +708,8 @@ contains
         fric_heating = off
       end if
 
-      lambda_min_nml    = 40.0_r_um
-
       l_noice_in_turb = noice_in_turb
+      lambda_min_nml    = 40.0_r_um
 
       select case (free_atm_mix)
         case(free_atm_mix_to_sharp)
