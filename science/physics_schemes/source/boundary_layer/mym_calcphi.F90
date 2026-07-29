@@ -15,32 +15,32 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_calcphi_mod
+module mym_calcphi_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_CALCPHI_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_CALCPHI_MOD'
+contains
 
-SUBROUTINE mym_calcphi(bl_levels, z_tq, r_mosurf, pmz, phh)
+subroutine mym_calcphi(bl_levels, z_tq, r_mosurf, pmz, phh)
 
-USE atm_fields_bounds_mod, ONLY: tdims
-USE mym_const_mod, ONLY: two_thirds, pr
-USE mym_option_mod, ONLY:                                                      &
+use atm_fields_bounds_mod, only: tdims
+use mym_const_mod, only: two_thirds, pr
+use mym_option_mod, only:                                                      &
       businger, bh1991, my_lowest_pd_surf,                                     &
       l_my_extra_level, my_z_extra_fact
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-IMPLICIT NONE
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                  ! number of boundary layer levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         bl_levels),                                                            &
                  ! Z_TQ(*,K) is height of theta
@@ -49,7 +49,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  ! reciprocal of Monin-Obkhov length
 
 ! Intent OUT Variables
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    pmz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                   &
                  ! gradient function for momentum
                  ! at surface minus non-dimensional height
@@ -58,21 +58,21 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
                  ! at surface
 
 ! Local variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j
                  ! Loop indexes
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    zeta,                                                                       &
                  ! non-dimensional height
    tmp
                  ! work variable
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    z_1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
                  ! height of the lowest layer
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
                  ! coefficients appeared
                  !               in Beljaars and Holtslag(1991)
    bel_a = 1.0,                                                                &
@@ -80,67 +80,67 @@ REAL(KIND=real_umphys), PARAMETER ::                                           &
    bel_c = 5.0,                                                                &
    bel_d = 0.35
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    my_zeta_max = 2.0
                 ! upper limit for zeta
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_CALCPHI'
+character(len=*), parameter :: RoutineName='MYM_CALCPHI'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-IF (l_my_extra_level) THEN
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+if (l_my_extra_level) then
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       z_1(i, j) = z_tq(i, j, 1) * my_z_extra_fact
-    END DO
-  END DO
-ELSE
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+    end do
+  end do
+else
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       z_1(i, j) = z_tq(i, j, 1)
-    END DO
-  END DO
-END IF
+    end do
+  end do
+end if
 
-IF (my_lowest_pd_surf == businger) THEN
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      zeta = MIN(z_1(i, j) * r_mosurf(i, j), my_zeta_max)
-      IF (zeta >= 0.0) THEN
+if (my_lowest_pd_surf == businger) then
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      zeta = min(z_1(i, j) * r_mosurf(i, j), my_zeta_max)
+      if (zeta >= 0.0) then
         pmz(i, j) = 1.0 + 4.7 * zeta
         phh(i, j) = pr + 4.7 * zeta
-      ELSE
-        pmz(i, j) = 1.0 / SQRT(SQRT(1.0 - 15.0 * zeta))
-        phh(i, j) = pr / SQRT(1.0 - 9.0 * zeta)
-      END IF
+      else
+        pmz(i, j) = 1.0 / sqrt(sqrt(1.0 - 15.0 * zeta))
+        phh(i, j) = pr / sqrt(1.0 - 9.0 * zeta)
+      end if
       pmz(i, j) = pmz(i, j) - zeta
-    END DO
-  END DO
-ELSE IF (my_lowest_pd_surf == bh1991) THEN
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      zeta = MIN(z_1(i, j) * r_mosurf(i, j), my_zeta_max)
-      IF (zeta >= 0) THEN
-        tmp = bel_b * EXP(-bel_d * zeta)                                       &
+    end do
+  end do
+else if (my_lowest_pd_surf == bh1991) then
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      zeta = min(z_1(i, j) * r_mosurf(i, j), my_zeta_max)
+      if (zeta >= 0) then
+        tmp = bel_b * exp(-bel_d * zeta)                                       &
              * (bel_d * zeta - bel_c - 1.0)
         pmz(i, j) = 1.0 - zeta * (tmp - bel_a)
         phh(i, j) = 1.0 - zeta * (tmp -                                        &
-             SQRT(1.0 + two_thirds * bel_a * zeta))
-      ELSE
-        tmp = SQRT(1.0 - 16.0 * zeta)
-        pmz(i, j) = 1.0 / SQRT(tmp)
+             sqrt(1.0 + two_thirds * bel_a * zeta))
+      else
+        tmp = sqrt(1.0 - 16.0 * zeta)
+        pmz(i, j) = 1.0 / sqrt(tmp)
         phh(i, j) = 1.0 / tmp
-      END IF
+      end if
       pmz(i, j) = pmz(i, j) - zeta
-    END DO
-  END DO
-END IF
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+    end do
+  end do
+end if
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_calcphi
-END MODULE mym_calcphi_mod
+end subroutine mym_calcphi
+end module mym_calcphi_mod

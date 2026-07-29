@@ -14,23 +14,23 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_implic_mod
+module mym_implic_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_IMPLIC_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_IMPLIC_MOD'
+contains
 
-SUBROUTINE mym_implic(levels, kst, ken, aa, bb, cc, qq)
+subroutine mym_implic(levels, kst, ken, aa, bb, cc, qq)
 
-USE atm_fields_bounds_mod, ONLY: pdims
-USE yomhook, ONLY: lhook, dr_hook
-USE parkind1, ONLY: jprb, jpim
-IMPLICIT NONE
+use atm_fields_bounds_mod, only: pdims
+use yomhook, only: lhook, dr_hook
+use parkind1, only: jprb, jpim
+implicit none
 
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    levels,                                                                     &
                   ! number of levels of variables to be solved
    kst,                                                                        &
@@ -38,7 +38,7 @@ INTEGER, INTENT(IN) ::                                                         &
    ken
                   ! index of emd level to be solved
 
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
    aa(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end, levels),            &
                   ! coefficients of fields on level K-1
                   ! in the tri-diagonal equation
@@ -52,47 +52,47 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
                   ! right hand side of the tri-diagonal equation
 
 ! Local variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k
                   ! Loop indexes
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_IMPLIC'
+character(len=*), parameter :: RoutineName='MYM_IMPLIC'
 
 ! Solve from top to bottom
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-DO k = ken, kst + 1, -1
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+do k = ken, kst + 1, -1
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       aa(i, j, k - 1) = aa(i, j, k - 1) * bb(i, j, k)
       bb(i, j, k - 1) = bb(i, j, k - 1) * bb(i, j, k)                          &
            - aa(i, j, k) * cc(i, j, k - 1)
       qq(i, j, k - 1) = qq(i, j, k - 1) * bb(i, j, k)                          &
            - qq(i, j, k) * cc(i, j, k - 1)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
     qq(i, j, kst) = qq(i, j, kst) / bb(i, j, kst)
-  END DO
-END DO
+  end do
+end do
 
 ! Solve from bottom to top
-DO k = kst + 1, ken
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+do k = kst + 1, ken
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       qq(i, j, k) = (qq(i, j, k) - aa(i, j, k) *                               &
            qq(i, j, k - 1)) / bb(i, j, k)
-    END DO
-  END DO
-END DO
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE mym_implic
-END MODULE mym_implic_mod
+    end do
+  end do
+end do
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine mym_implic
+end module mym_implic_mod

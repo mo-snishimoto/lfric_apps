@@ -14,16 +14,16 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_shcu_buoy_mod
+module mym_shcu_buoy_mod
 
-USE um_types, ONLY: real_umphys, real_eps
+use um_types, only: r_bl, real_eps
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_SHCU_BUOY_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_SHCU_BUOY_MOD'
+contains
 
-SUBROUTINE mym_shcu_buoy(                                                      &
+subroutine mym_shcu_buoy(                                                      &
 ! IN levels/switches
                      bl_levels,                                                &
                      BL_diag,                                                  &
@@ -34,30 +34,30 @@ SUBROUTINE mym_shcu_buoy(                                                      &
 ! INOUT / OUT fields
                      zhpar,frac, wb_ng)
 
-USE atm_fields_bounds_mod, only: tdims, pdims, tdims_l
-USE bl_diags_mod, ONLY: strnewbldiag
-USE conversions_mod, ONLY: pi
-USE gen_phys_inputs_mod, ONLY: l_mr_physics
-USE model_domain_mod, ONLY: model_type, mt_single_column
-USE mym_option_mod, ONLY: tke_levels, wb_ng_max, shcu_levels
-USE mym_const_mod, ONLY: one_third
-USE planet_constants_mod, ONLY: r, repsilon, pref, kappa, c_virtual,           &
+use atm_fields_bounds_mod, only: tdims, pdims, tdims_l
+use bl_diags_mod, only: strnewbldiag
+use conversions_mod, only: pi
+use gen_phys_inputs_mod, only: l_mr_physics
+use model_domain_mod, only: model_type, mt_single_column
+use mym_option_mod, only: tke_levels, wb_ng_max, shcu_levels
+use mym_const_mod, only: one_third
+use planet_constants_mod, only: r, repsilon, pref, kappa, c_virtual,           &
     recip_kappa, g, lcrcp, ls, lsrcp, grcp
-USE timestep_mod,  ONLY: timestep
-USE water_constants_mod, ONLY: lc, tm
+use timestep_mod,  only: timestep
+use water_constants_mod, only: lc, tm
 
-USE qsat_mod, ONLY: qsat, qsat_mix
+use qsat_mod, only: qsat, qsat_mix
 
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
 
-IMPLICIT NONE
+implicit none
 
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    fb_surf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),               &
               ! buoyancy flux at the surface
    ustar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
@@ -65,7 +65,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    pstar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
               ! surface pressure (Pa)
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         bl_levels),                                                            &
               ! height of theta levels
@@ -79,7 +79,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                 bl_levels)
               ! pressure at rho levels (Pa)
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    u_p(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),         &
               ! U at pressure points
    v_p(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),         &
@@ -104,14 +104,14 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
               ! function
               ! (:,:,K) is located at theta level K-1
 
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
    zhpar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
              ! boundary layer height evaluated with Richardson Number
 
 !  Declaration of BL diagnostics.
-TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
+type (strnewbldiag), intent(in out) :: BL_diag
 
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    frac(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         tke_levels),                                                           &
               ! cloud fraction including that by convection
@@ -123,9 +123,9 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
 
 ! local variables
 
-CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'MYM_SHCU_BUOY'
+character(len=*), parameter ::  RoutineName = 'MYM_SHCU_BUOY'
 
-INTEGER :: i, j, k,                                                            &
+integer :: i, j, k,                                                            &
    k_par(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
                  ! level for start of parcel ascent
    ktpar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
@@ -141,7 +141,7 @@ INTEGER :: i, j, k,                                                            &
    topbl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
                  ! 1 => top of bl reached
                  ! 2 => max allowable height reached
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    exner(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          shcu_levels),                                                         &
                  ! sigma^cappa
@@ -176,7 +176,7 @@ REAL(KIND=real_umphys) ::                                                      &
            shcu_levels)
                  ! gradient of THV at theta levels
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    thl_par(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),               &
                  ! parcel thl
    qw_par(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                &
@@ -213,7 +213,7 @@ REAL(KIND=real_umphys) ::                                                      &
    t_ref(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
                  ! reference temperature
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    virt_factor,                                                                &
                  ! Vfac = 1+0.61qv - qcl - qcf
    z_surf,                                                                     &
@@ -285,7 +285,7 @@ REAL(KIND=real_umphys) ::                                                      &
    frcu
                  ! cloud fraction due to convection
 
-LOGICAL ::                                                                     &
+logical ::                                                                     &
    topinv(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                &
                  ! indicates top of inversion being reached
    topprof(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),               &
@@ -293,30 +293,30 @@ LOGICAL ::                                                                     &
    above_lcl
                  ! indicates being above the LCL
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    a_parcel=0.2,                                                               &
    b_parcel=3.26,                                                              &
    max_t_grad=1.0e-3,                                                          &
    ric=0.25
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     zhpar_old(i, j) = zhpar(i, j)
     ! Limit boundary layer growth rate to 0.14 m/s
     ! (approx 500m/hour)
-    zhpar_max(i,j) = MIN( z_tq(i, j, shcu_levels-1),                           &
+    zhpar_max(i,j) = min( z_tq(i, j, shcu_levels-1),                           &
                           zhpar_old(i, j)+timestep*0.14 )
     zh(i, j) = 0.0
-  END DO
-END DO
-DO k = 1, shcu_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+  end do
+end do
+do k = 1, shcu_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       ! initialise cumulus cloud fraction to zero
       exner(i, j, k) = (p_theta_levels(i, j, k) / pref) ** kappa
       th(i, j, k) = t(i, j, k) / exner(i, j, k)
@@ -331,70 +331,70 @@ DO k = 1, shcu_levels
       wb_ng(i,j,k) = 0.0
       frac(i,j,k) = frac_gauss(i,j,k)
       tl(i,j,k) = t(i,j,k) - lcrcp*qcl(i,j,k) - lsrcp*qcf(i,j,k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO k = 2, shcu_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, shcu_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       dthvdz(i,j,k) = THv(i,j,k) - THv(i,j,k-1)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO k = 3, shcu_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 3, shcu_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       weight1 = z_uv(i,j,k) - z_uv(i,j,k-1)
       weight2 = z_tq(i,j,k-1)- z_uv(i,j,k-1)
       weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
       dthvdzm(i,j,k) = (weight2 * dthvdz(i,j,k)                                &
                        + weight3 * dthvdz(i,j,k-1)) / weight1
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 k = 2
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     dthvdzm(i,j,k) = dthvdz(i,j,k)
-  END DO
-END DO
+  end do
+end do
 
-DO k = 2, shcu_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, shcu_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       ri = (u_p(i,j,k)-u_p(i,j,k-1))**2                                        &
                        +(v_p(i,j,k)-v_p(i,j,k-1))**2
       ri = (g*(z_uv(i,j,k)-z_uv(i,j,k-1))                                      &
-               *dthvdzm(i,j,k)/THv(i,j,k)) / MAX( 1.0e-14, ri )
-      IF ( ri > ric .AND. ABS(zh(i,j)) < real_eps ) THEN
+               *dthvdzm(i,j,k)/THv(i,j,k)) / max( 1.0e-14, ri )
+      if ( ri > ric .and. abs(zh(i,j)) < real_eps ) then
         zh(i,j)=z_uv(i,j,k)
-      END IF
+      end if
       qc_par(i,j,k) = 0.0
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 !-----------------------------------------------------------------------
 ! 1. Set up parcel
 !-----------------------------------------------------------------------
 ! Start parcel ascent from grid-level above top of surface layer, taken
 ! to be at a height, z_surf, given by 0.1*ZH
 !-----------------------------------------------------------------------
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     k_par(i,j) = 1
     zhpar(i,j) = zh(i,j)  ! initialise to bl depth (from RI)
     k_lcl(i,j) = 1
-    IF (fb_surf(i,j) >= 0.0) THEN
+    if (fb_surf(i,j) >= 0.0) then
       z_surf = 0.1 * zh(i,j)
-      DO WHILE ( z_uv(i,j,k_par(i,j)) < z_surf .AND.                           &
+      do while ( z_uv(i,j,k_par(i,j)) < z_surf .and.                           &
                   ! not reached Z_SURF
                   thvl(i,j,k_par(i,j)+1) <= thvl(i,j,k_par(i,j)) )
                   ! not reached inversion
         k_par(i,j) = k_par(i,j) + 1
-      END DO
+      end do
       w_s = ( fb_surf(i,j)*zh(i,j) + ustar(i,j)**3 )**one_third
       thv_sd = 1.93 * fb_surf(i,j) * THv(i,j,k_par(i,j))                       &
                     / ( g * w_s )
@@ -413,43 +413,43 @@ DO j = tdims%j_start, tdims%j_end
         vap_press = q(i,j,k_par(i,j)) *                                        &
               p_theta_levels(i,j,k_par(i,j)) / ( 100.0*repsilon )
       end if
-      IF (vap_press > 0.0) THEN
-        t_lcl = 55.0 + 2840.0 / ( 3.5*LOG(t(i,j,k_par(i,j)))                   &
-                   - LOG(vap_press) - 4.805 )
+      if (vap_press > 0.0) then
+        t_lcl = 55.0 + 2840.0 / ( 3.5*log(t(i,j,k_par(i,j)))                   &
+                   - log(vap_press) - 4.805 )
         p_lcl(i,j) =  p_theta_levels(i,j,k_par(i,j)) *                         &
              ( t_lcl / t(i,j,k_par(i,j)) )**(recip_kappa)
-      ELSE
+      else
         p_lcl(i,j) = pstar(i,j)
-      END IF
+      end if
        ! K_LCL is model level BELOW the lifting condensation level
       k_lcl(i,j) = 1
-      DO k = 2, shcu_levels
-        IF (p_rho_levels(i,j,k) > p_lcl(i,j)) THEN
+      do k = 2, shcu_levels
+        if (p_rho_levels(i,j,k) > p_lcl(i,j)) then
           k_lcl(i,j) = k - 1
-        END IF
-      END DO
+        end if
+      end do
       z_lcl(i,j) = z_uv(i,j,k_lcl(i,j)+1)                                      &
             + ( z_uv(i,j,k_lcl(i,j))-z_uv(i,j,k_lcl(i,j)+1) )                  &
             * ( p_rho_levels(i,j,k_lcl(i,j)+1) - p_lcl(i,j))                   &
             / ( p_rho_levels(i,j,k_lcl(i,j)+1)                                 &
                              - p_rho_levels(i,j,k_lcl(i,j)) )
-      z_lcl(i,j) = MAX( z_uv(i,j,1), z_lcl(i,j) )
+      z_lcl(i,j) = max( z_uv(i,j,1), z_lcl(i,j) )
       !-----------------------------------------------------------------------
       ! Threshold on parcel buoyancy for ascent, THV_PERT, is related to
       ! standard deviation of thv in surface layer
       !-----------------------------------------------------------------------
-      thv_pert(i,j)= MAX( a_parcel,                                            &
-            MIN( max_t_grad*zh(i,j), b_parcel*thv_sd ) )
+      thv_pert(i,j)= max( a_parcel,                                            &
+            min( max_t_grad*zh(i,j), b_parcel*thv_sd ) )
 
       th_ref(i,j) = thl_par(i,j)
       th_par_kp1(i,j) = thl_par(i,j)
-    ELSE
+    else
       ! dummy
       th_ref(i,j) = thl(i,j,1)
       z_lcl(i,j) = z_uv(i, j, 1)
-    END IF   ! test on unstable
-  END DO
-END DO
+    end if   ! test on unstable
+  end do
+end do
 !-----------------------------------------------------------------------
 ! 2  Parcel ascent:
 !-----------------------------------------------------------------------
@@ -457,47 +457,47 @@ END DO
 ! Calculate parcel QC by linearising q_sat about the parcel's
 ! temperature extrapolated up to the next grid-level
 
-DO k = 1, shcu_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 1, shcu_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       t_ref(i,j) = th_ref(i,j)*exner(i,j,k)
-    END DO
-  END DO
+    end do
+  end do
 
-  IF ( l_mr_physics ) THEN
-    CALL qsat_mix(qsat_calc,t_ref,p_theta_levels(:,:,k),tdims%i_end,tdims%j_end)
-  ELSE
-    CALL qsat(qsat_calc,t_ref,p_theta_levels(:,:,k),tdims%i_end,tdims%j_end)
-  END IF
+  if ( l_mr_physics ) then
+    call qsat_mix(qsat_calc,t_ref,p_theta_levels(:,:,k),tdims%i_end,tdims%j_end)
+  else
+    call qsat(qsat_calc,t_ref,p_theta_levels(:,:,k),tdims%i_end,tdims%j_end)
+  end if
 
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      IF (fb_surf(i,j) > 0.0) THEN
-        IF (t_ref(i,j) > tm) THEN
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      if (fb_surf(i,j) > 0.0) then
+        if (t_ref(i,j) > tm) then
           lrcp_c = lcrcp
           l_heat = lc
-        ELSE
+        else
           lrcp_c = lsrcp
           l_heat = ls
-        END IF
+        end if
 
         dqsatdt = repsilon * l_heat * qsat_calc(i,j)/(r*t_ref(i,j)**2)
         qsatfac = 1.0/(1.0+(lrcp_c)*dqsatdt)
-        qc_par(i,j,k)  = MAX( 0.0,                                             &
+        qc_par(i,j,k)  = max( 0.0,                                             &
                qsatfac*( qw_par(i,j) - qsat_calc(i,j)                          &
               - (thl_par(i,j)-th_ref(i,j))                                     &
                    *exner(i,j,k)*dqsatdt ) )
-        qc_env  = MAX( 0.0, qsatfac*( qw(i,j,k) - qsat_calc(i,j)               &
+        qc_env  = max( 0.0, qsatfac*( qw(i,j,k) - qsat_calc(i,j)               &
               - (tl(i,j,k)-t_ref(i,j)) *dqsatdt ) )
         qc_par(i,j,k)  = qc_par(i,j,k) + qcl(i,j,k) + qcf(i,j,k)               &
                              - qc_env
         t_par = sl_par(i,j) - grcp * z_tq(i,j,k)                               &
                   + lrcp_c * qc_par(i,j,k)
         ! recalculate if signs of T_REF and T_PAR are different
-        IF (t_ref(i,j) <= tm .AND. t_par > tm) THEN
+        if (t_ref(i,j) <= tm .and. t_par > tm) then
           lrcp_c = lcrcp
           qsatfac = 1.0/(1.0+(lrcp_c)*dqsatdt)
-          qc_par(i,j,k)  = MAX( 0.0,                                           &
+          qc_par(i,j,k)  = max( 0.0,                                           &
                  qsatfac*( qw_par(i,j) - qsat_calc(i,j)                        &
                 - (sl_par(i,j)-grcp*z_tq(i,j,k)-t_ref(i,j))                    &
                      *dqsatdt ) )
@@ -505,51 +505,51 @@ DO k = 1, shcu_levels
                                - qc_env
           t_par = sl_par(i,j) - grcp * z_tq(i,j,k)                             &
                     + lrcp_c * qc_par(i,j,k)
-        END IF
+        end if
         th_par = t_par / exner(i,j,k)
         thv_par(i,j,k) = th_par *                                              &
                          (1.0+c_virtual*qw_par(i,j)                            &
                            -(1.0+c_virtual)*qc_par(i,j,k))
-        IF (k > 1 .AND. k < shcu_levels - 1) THEN
+        if (k > 1 .and. k < shcu_levels - 1) then
           ! extrapolate reference TH gradient up to next grid-level
           z_pr      = (z_tq(i,j,k+1)-z_tq(i,j,k))                              &
                                /(z_tq(i,j,k)-z_tq(i,j,k-1))
           th_ref(i,j) = th_par*(1.0+z_pr)                                      &
                                - th_par_kp1(i,j)*z_pr
           th_par_kp1(i,j) = th_par
-        END IF
-      END IF   ! test on unstable
-    END DO
-  END DO
-END DO
+        end if
+      end if   ! test on unstable
+    end do
+  end do
+end do
 !-----------------------------------------------------------------------
 ! 3 Identify layer boundaries
 !-----------------------------------------------------------------------
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     topbl(i,j) = 0
-    topprof(i,j) = .FALSE.
-    topinv(i,j)= .FALSE.
+    topprof(i,j) = .false.
+    topinv(i,j)= .false.
     ktpar(i,j) = 1
     k_neut(i,j) = 1
     ktinv(i,j) = 1
     dbdz_inv(i,j) = 0.003
                   ! start with a weak minimum inversion lapse rate
                   ! (~1.e-4 s^-2, converted from K/m to s^-2 later)
-  END DO
-END DO
+  end do
+end do
 
-DO k = 2, shcu_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, shcu_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
 
-      IF (fb_surf(i,j) > 0.0) THEN
+      if (fb_surf(i,j) > 0.0) then
         !------------------------------------------------------------
         ! Set flag to true when level BELOW is above the lcl
         ! and above LCL transition zone
         !------------------------------------------------------------
         above_lcl = k-1 > k_lcl(i,j) + 1                                       &
-                         .AND. z_tq(i,j,k-1) > 1.1*z_lcl(i,j)
+                         .and. z_tq(i,j,k-1) > 1.1*z_lcl(i,j)
         !-------------------------------------------------------------
         ! Calculate vertical gradients in parcel and environment THV
         !-------------------------------------------------------------
@@ -560,82 +560,82 @@ DO k = 2, shcu_levels
         !-------------------------------------------------------------
         ! Find top of inversion - where parcel has minimum buoyancy
         !-------------------------------------------------------------
-        IF ( topbl(i,j) > 0 .AND. .NOT. topinv(i,j) ) THEN
-          dbdz_inv(i,j) = MAX( dbdz_inv(i,j), denv_bydz )
-          IF ( k-1 > ktpar(i,j)+2 .AND. (                                      &
+        if ( topbl(i,j) > 0 .and. .not. topinv(i,j) ) then
+          dbdz_inv(i,j) = max( dbdz_inv(i,j), denv_bydz )
+          if ( k-1 > ktpar(i,j)+2 .and. (                                      &
                ! Inversion at least two grid-levels thick
-                         denv_bydz <= dpar_bydz .OR.                           &
+                         denv_bydz <= dpar_bydz .or.                           &
                ! => at a parcel buoyancy minimum
-                z_uv(i,j,k) > zhpar(i,j)+MIN(1000.0, 0.5*zhpar(i,j))           &
-               )) THEN
+                z_uv(i,j,k) > zhpar(i,j)+min(1000.0, 0.5*zhpar(i,j))           &
+               )) then
                ! restrict inversion thickness < 1/2 bl depth and 1km
-            topinv(i,j) = .TRUE.
+            topinv(i,j) = .true.
             ktinv(i,j) = k-1
-          END IF
-        END IF
+          end if
+        end if
         !-------------------------------------------------------------
         ! Find base of inversion - where parcel has maximum buoyancy
         !                          or is negatively buoyant
         !-------------------------------------------------------------
-        IF ( .NOT. topprof(i,j) .AND. k > k_par(i,j) .AND.                     &
+        if ( .not. topprof(i,j) .and. k > k_par(i,j) .and.                     &
              ((thv_par(i,j,k)-THv(i,j,k)                                       &
-                        <= - thv_pert(i,j)) .OR.                               &
-               k > shcu_levels - 1 )) THEN
-          topprof(i,j) = .TRUE.
+                        <= - thv_pert(i,j)) .or.                               &
+               k > shcu_levels - 1 )) then
+          topprof(i,j) = .true.
           k_neut(i,j) = k-1
-        END IF
+        end if
 
-        IF ( topbl(i,j) == 0 .AND. k > k_par(i,j) .AND.                        &
+        if ( topbl(i,j) == 0 .and. k > k_par(i,j) .and.                        &
              (  ( thv_par(i,j,k)-THv(i,j,k)                                    &
-                          <= - thv_pert(i,j)) .OR.                             &
+                          <= - thv_pert(i,j)) .or.                             &
           !               plume non buoyant
 
-                        ( above_lcl .AND. (denv_bydz > 1.25*dpar_bydz) )       &
+                        ( above_lcl .and. (denv_bydz > 1.25*dpar_bydz) )       &
 
           !             or environmental virtual temperature gradient
           !             significantly larger than parcel gradient
           !             above lifting condensation level
 
-                                 )) THEN
+                                 )) then
 
           topbl(i,j) = 1
           ktpar(i,j) = k-1   ! marks most buoyant theta-level
                            ! (just below inversion)
           zhpar(i,j)    = z_uv(i,j,k)
-          dbdz_inv(i,j) = MAX( dbdz_inv(i,j), denv_bydz )
-        END IF
+          dbdz_inv(i,j) = max( dbdz_inv(i,j), denv_bydz )
+        end if
 
-        IF ( topbl(i,j) == 0 .AND.                                             &
+        if ( topbl(i,j) == 0 .and.                                             &
              (z_tq(i,j,k-1) >= zhpar_max(i,j)                                  &
-                                          .OR. k == shcu_levels)) THEN
+                                          .or. k == shcu_levels)) then
           !                      gone above maximum allowed height
           topbl(i,j) = 2
           ktpar(i,j) = k-2
-          dbdz_inv(i,j) = MAX( dbdz_inv(i,j), denv_bydz )
-        END IF
-      END IF   ! test on unstable
-    END DO
-  END DO
-END DO
+          dbdz_inv(i,j) = max( dbdz_inv(i,j), denv_bydz )
+        end if
+      end if   ! test on unstable
+    end do
+  end do
+end do
 
 !-----------------------------------------------------------------------
 ! 3.1 Interpolate inversion base and top between grid-levels
 !-----------------------------------------------------------------------
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
-    IF ( ktpar(i,j) > 1 ) THEN
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
+    if ( ktpar(i,j) > 1 ) then
         !-----------------------------------------------------
         ! parcel rose successfully
         !-----------------------------------------------------
       zhpar(i,j)    = z_uv(i,j,ktpar(i,j)+1)
 
       ! to determine if interpolation of the inversion is performed
-      IF (topbl(i,j) == 2) THEN
+      if (topbl(i,j) == 2) then
           ! Stopped at max allowable height
         interp_inv= 0
         zhpar(i,j)  = zhpar_max(i,j)
         k = ktpar(i,j)
-      ELSE
+      else
         interp_inv=1
         !-------------------------------------------------------
         ! First interpolate inversion base (max buoyancy excess)
@@ -661,32 +661,32 @@ DO j = tdims%j_start, tdims%j_end
         a_poly = (a2-b_poly*z2*z2)/z2**3
 
         xi=b_poly*b_poly-3.0*a_poly*c_poly
-        IF (ABS(a_poly) >= real_eps .AND. xi > 0.0) THEN
+        if (abs(a_poly) >= real_eps .and. xi > 0.0) then
           ! ZHPAR is then the height where the above
           ! polynomial has zero gradient
-          zhpar(i,j) = z_tq(i,j,k-2)-(b_poly+SQRT(xi))                         &
+          zhpar(i,j) = z_tq(i,j,k-2)-(b_poly+sqrt(xi))                         &
                                          /(3.0*a_poly)
-          zhpar(i,j) = MAX( MIN( zhpar(i,j), z_tq(i,j,k) ),                    &
+          zhpar(i,j) = max( min( zhpar(i,j), z_tq(i,j,k) ),                    &
                                         z_tq(i,j,k-2) )
-          IF ( zhpar(i,j) > z_tq(i,j,ktpar(i,j)+1) ) THEN
+          if ( zhpar(i,j) > z_tq(i,j,ktpar(i,j)+1) ) then
             ktpar(i,j)=ktpar(i,j)+1
-          END IF
-        END IF
+          end if
+        end if
         k = ktpar(i,j)
         denv_bydz = (THv(i,j,k+1) - THv(i,j,k)) /                              &
                         (z_tq(i,j,k+1) - z_tq(i,j,k))
-      END IF
-      IF ( interp_inv == 1 ) THEN
+      end if
+      if ( interp_inv == 1 ) then
         !-----------------------------------------------------
         ! Now interpolate inversion top
         !-----------------------------------------------------
-        IF ( ktinv(i,j) > ktpar(i,j)+1 ) THEN
+        if ( ktinv(i,j) > ktpar(i,j)+1 ) then
           k = ktinv(i,j)+1
           dpar_bydz = (thv_par(i,j,k) - thv_par(i,j,k-1)) /                    &
                 (z_tq(i,j,k) - z_tq(i,j,k-1))
           denv_bydz = (THv(i,j,k) - THv(i,j,k-1)) /                            &
                 (z_tq(i,j,k) - z_tq(i,j,k-1))
-          IF (denv_bydz < dpar_bydz) THEN
+          if (denv_bydz < dpar_bydz) then
             !-----------------------------------------------------------
             ! interpolate height by fitting a parabola to parcel
             ! excesses and finding the height of its minimum
@@ -701,47 +701,47 @@ DO j = tdims%j_start, tdims%j_end
             b_poly=( d1-d3 - (d2-d3)*(z1**2-z3**2)/xi ) /                      &
                   ( z1-z3 - (z2-z3)*(z1**2-z3**2)/xi )
             a_poly=(d2 - d3 - b_poly*(z2-z3) )/xi
-          END IF
-        END IF   ! inversion top grid-level 2 levels above parcel top
-      END IF   ! interp_inv flag
-    END IF   ! parcel rose
-  END DO
-END DO
+          end if
+        end if   ! inversion top grid-level 2 levels above parcel top
+      end if   ! interp_inv flag
+    end if   ! parcel rose
+  end do
+end do
 !-----------------------------------------------------------------------
 ! 4. Integrate parcel excess buoyancy
 !-----------------------------------------------------------------------
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     cape(i,j) = 0.0
-  END DO
-END DO
-DO k = 2, shcu_levels - 1
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      IF (k > k_lcl(i,j) .AND. k <=  k_neut(i,j)-1) THEN
+  end do
+end do
+do k = 2, shcu_levels - 1
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      if (k > k_lcl(i,j) .and. k <=  k_neut(i,j)-1) then
         cape(i,j) = cape(i,j) + (thv_par(i,j,k) - THv(i,j,k))                  &
                     * (z_uv(i,j,k+1)-z_uv(i,j,k)) / THv(i,j,k)
-      END IF
-    END DO
-  END DO
-END DO
+      end if
+    end do
+  end do
+end do
 !-----------------------------------------------------------------------
 ! 6. Calculate non-gradient fluxes and velocity scales
 !-----------------------------------------------------------------------
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     dz_inv_cu(i,j) = 0.0
     frcu = 0.0
-    IF (fb_surf(i,j) > 0.0) THEN
+    if (fb_surf(i,j) > 0.0) then
       w_star(i,j) = ( fb_surf(i,j)*zhpar(i,j) )**one_third
                                    ! dry bl scale
       dbdz_inv(i,j) = g*dbdz_inv(i,j)/THv(i,j,ktpar(i,j))
                                    ! convert to buoyancy units
       dz_inv_cu(i,j) = 0.2*zhpar(i,j)
                                    ! default for no CAPE
-    END IF
+    end if
 
-    IF (cape(i,j) > 0.0 .AND. zhpar(i,j) - z_lcl(i,j) > 0.0) THEN
+    if (cape(i,j) > 0.0 .and. zhpar(i,j) - z_lcl(i,j) > 0.0) then
       k = k_lcl(i,j)
       ! calculate velocity scales
       w_star(i,j) = ( fb_surf(i,j)*z_lcl(i,j) )**one_third
@@ -750,35 +750,35 @@ DO j = tdims%j_start, tdims%j_end
       w_cld     = ( m_base * cape(i,j) )**one_third
       z_cld     = zhpar(i,j) - z_lcl(i,j)
       ! calculate fluxes at LCL
-      wb_scale  = ( w_cld**3/z_cld ) * SQRT( m_base/w_cld )
+      wb_scale  = ( w_cld**3/z_cld ) * sqrt( m_base/w_cld )
 
       !----------------------------------------------------------
       ! Estimate inversion thickness.
       !----------------------------------------------------------
       vscalsq_incld = 2.0*cape(i,j)
-      dz_inv_cu(i,j)  = SQRT( vscalsq_incld/dbdz_inv(i,j) )
+      dz_inv_cu(i,j)  = sqrt( vscalsq_incld/dbdz_inv(i,j) )
 
       ! If inversion is unresolved (less than 3 grid-levels thick)
       ! then use profile reconstruction
 
-      IF ( ktpar(i,j) <= shcu_levels - 4 ) THEN
-        IF ( dz_inv_cu(i,j)                                                    &
-             < z_tq(i,j,ktpar(i,j)+3) - z_tq(i,j,ktpar(i,j)) ) THEN
+      if ( ktpar(i,j) <= shcu_levels - 4 ) then
+        if ( dz_inv_cu(i,j)                                                    &
+             < z_tq(i,j,ktpar(i,j)+3) - z_tq(i,j,ktpar(i,j)) ) then
 
           ! First interpolate to find height of discontinuous inversion
 
           k = ktpar(i,j)
           gamma_cld = (THv(i,j,k)-THv(i,j,k-1))                                &
                                    /(z_tq(i,j,k)-z_tq(i,j,k-1))
-          IF (k-2 > k_lcl(i,j)) THEN
-            gamma_cld = MIN( gamma_cld,                                        &
+          if (k-2 > k_lcl(i,j)) then
+            gamma_cld = min( gamma_cld,                                        &
                          ( THv(i,j,k-1)-THv(i,j,k-2) )                         &
                             /(   z_tq(i,j,k-1)-  z_tq(i,j,k-2) ) )
-          END IF
-          gamma_cld = MAX(0.0, gamma_cld)
+          end if
+          gamma_cld = max(0.0, gamma_cld)
           gamma_fa = (THv(i,j,k+4)-THv(i,j,k+3))                               &
                                 /(z_tq(i,j,k+4)-z_tq(i,j,k+3))
-          gamma_fa = MAX(0.0, gamma_fa)
+          gamma_fa = max(0.0, gamma_fa)
           ! Integrate thv over the inversion grid-levels
           grid_int =  (THv(i,j,k+1)-THv(i,j,k))                                &
                                *(z_uv(i,j,k+2)-z_uv(i,j,k+1))                  &
@@ -796,14 +796,14 @@ DO j = tdims%j_start, tdims%j_end
           a_poly = 0.5*(gamma_cld-gamma_fa)
           xi     = b_poly*b_poly-4.0*a_poly*c_poly
 
-          IF (xi >= 0.0 .AND.                                                  &
-                       ( ABS(a_poly) >= real_eps                               &
-                       .OR. ABS(b_poly) >= real_eps )) THEN
-            IF (ABS(a_poly) < real_eps) THEN
+          if (xi >= 0.0 .and.                                                  &
+                       ( abs(a_poly) >= real_eps                               &
+                       .or. abs(b_poly) >= real_eps )) then
+            if (abs(a_poly) < real_eps) then
               dz_inv_cu_rec = -c_poly/b_poly
-            ELSE
-              dz_inv_cu_rec = (-b_poly-SQRT(xi))/(2.0*a_poly)
-            END IF
+            else
+              dz_inv_cu_rec = (-b_poly-sqrt(xi))/(2.0*a_poly)
+            end if
             zhdisc  = z_tq(i,j,k)+dz_inv_cu_rec
 
             ! Now calculate inversion stability given Dz=V^2/DB
@@ -814,46 +814,46 @@ DO j = tdims%j_start, tdims%j_end
             a_poly = 0.5*(gamma_cld+gamma_fa)
             xi=b_poly*b_poly-4.0*a_poly*c_poly
 
-            IF (xi >= 0.0 .AND.                                                &
-                     ( ABS(a_poly) >= real_eps                                 &
-                     .OR. ABS(b_poly) >= real_eps )) THEN
-              IF (ABS(a_poly) < real_eps) THEN
+            if (xi >= 0.0 .and.                                                &
+                     ( abs(a_poly) >= real_eps                                 &
+                     .or. abs(b_poly) >= real_eps )) then
+              if (abs(a_poly) < real_eps) then
                 dz_inv_cu_rec = -c_poly/b_poly
-              ELSE
-                dz_inv_cu_rec = (-b_poly+SQRT(xi))/(2.0*a_poly)
-              END IF
-              dz_inv_cu_rec = MIN( dz_inv_cu_rec,                              &
+              else
+                dz_inv_cu_rec = (-b_poly+sqrt(xi))/(2.0*a_poly)
+              end if
+              dz_inv_cu_rec = min( dz_inv_cu_rec,                              &
                                2.0*(zhdisc-z_tq(i,j,ktpar(i,j))) )
-              IF (dz_inv_cu_rec <= dz_inv_cu(i,j)) THEN
+              if (dz_inv_cu_rec <= dz_inv_cu(i,j)) then
                 dz_inv_cu(i,j) = dz_inv_cu_rec
-              END IF
-            END IF  ! interpolation for DZ_INV_CU successful
-          END IF    ! interpolation for ZHDISC successful
+              end if
+            end if  ! interpolation for DZ_INV_CU successful
+          end if    ! interpolation for ZHDISC successful
 
-        END IF  ! inversion not resolved
-      END IF  ! if ktpar(i,j) <= shcu_levels - 4
+        end if  ! inversion not resolved
+      end if  ! if ktpar(i,j) <= shcu_levels - 4
 
-      zpr_top     = 1.0 + MIN(1.0, dz_inv_cu(i,j)/z_cld )
-      DO k = 1, shcu_levels-1
+      zpr_top     = 1.0 + min(1.0, dz_inv_cu(i,j)/z_cld )
+      do k = 1, shcu_levels-1
           ! Z_PR=0 at cloud-base, 1 at cloud-top
         z_pr = ( z_uv(i,j,k+1) - z_lcl(i,j) )/ z_cld
-        IF (z_pr > 0.0) THEN
+        if (z_pr > 0.0) then
 
           !   Non-gradient function for WB
 
           f_ng = 0.0
-          IF ( z_pr <= 0.9 ) THEN
+          if ( z_pr <= 0.9 ) then
                 ! function with gradient=0 at z=0.9
                 !                    f=0,1 at z=0,0.9
             ze_pr = z_pr/0.9
-            f_ng  = 0.5 * SQRT(ze_pr) * (3.0-ze_pr)
-          ELSE IF (z_pr <= zpr_top) THEN
+            f_ng  = 0.5 * sqrt(ze_pr) * (3.0-ze_pr)
+          else if (z_pr <= zpr_top) then
             ze_pr = (z_pr-0.9)/(zpr_top-0.9)  ! from 0 to 1
-            f_ng  = 0.5 * (1.0+COS(pi*ze_pr))
-          END IF
-          fnn = 0.5 * (1.0 + TANH(0.8 * (q1(i,j,k+1) + 0.5)))
-          wb_ng(i,j,k+1) = MIN((1.0-fnn)*3.7*f_ng*wb_scale, wb_ng_max)
-        END IF   ! if Z_PR > 0
+            f_ng  = 0.5 * (1.0+cos(pi*ze_pr))
+          end if
+          fnn = 0.5 * (1.0 + tanh(0.8 * (q1(i,j,k+1) + 0.5)))
+          wb_ng(i,j,k+1) = min((1.0-fnn)*3.7*f_ng*wb_scale, wb_ng_max)
+        end if   ! if Z_PR > 0
 
         !   Cloud fraction enhancement and sigma_s calculation (for ql)
         !   (on Z rather than ZE levels)
@@ -861,42 +861,42 @@ DO j = tdims%j_start, tdims%j_end
         z_pr = ( z_tq(i,j,k) - z_lcl(i,j) )/ z_cld
           ! Z_PR=0 at cloud-base, 1 at cloud-top
 
-        IF (z_pr > 0.0) THEN
+        if (z_pr > 0.0) then
           f_ng = 0.0
-          IF ( z_pr <= 0.9 ) THEN
-            f_ng = 1.0+3.0*EXP(-5.0*z_pr)     ! =4 at cloud-base
-          ELSE IF ( z_pr < zpr_top ) THEN
+          if ( z_pr <= 0.9 ) then
+            f_ng = 1.0+3.0*exp(-5.0*z_pr)     ! =4 at cloud-base
+          else if ( z_pr < zpr_top ) then
             ze_pr = (z_pr-0.9)/(zpr_top-0.9)  ! from 0 to 1
-            f_ng = 0.5*(1.0+COS(pi*ze_pr))
-          END IF
-          frcu = 0.5*f_ng*MIN(0.5,m_base/w_cld)
-        END IF   ! Z_PR > 0
-        frac(i,j,k+1)    = MAX( frac_gauss(i,j,k+1), frcu)
-      END DO   ! loop over K
-    END IF ! Test on CAPE
-  END DO
-END DO
+            f_ng = 0.5*(1.0+cos(pi*ze_pr))
+          end if
+          frcu = 0.5*f_ng*min(0.5,m_base/w_cld)
+        end if   ! Z_PR > 0
+        frac(i,j,k+1)    = max( frac_gauss(i,j,k+1), frcu)
+      end do   ! loop over K
+    end if ! Test on CAPE
+  end do
+end do
 
-DO k = shcu_levels + 1, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = shcu_levels + 1, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       frac(i, j, k) = 0.0
       wb_ng(i, j, k) = 0.0
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-IF (BL_diag%l_wb_ng) THEN
-  DO k = 2, shcu_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_wb_ng) then
+  do k = 2, shcu_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%wb_ng(i, j, k) = wb_ng(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE mym_shcu_buoy
-END MODULE mym_shcu_buoy_mod
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine mym_shcu_buoy
+end module mym_shcu_buoy_mod

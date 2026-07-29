@@ -16,32 +16,32 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_errfunc_mod
+module mym_errfunc_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_ERRFUNC_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_ERRFUNC_MOD'
+contains
 
-SUBROUTINE mym_errfunc(nn, x, y)
+subroutine mym_errfunc(nn, x, y)
 
-USE conversions_mod, ONLY: pi
-USE yomhook, ONLY: lhook, dr_hook
-USE parkind1, ONLY: jprb, jpim
-IMPLICIT NONE
+use conversions_mod, only: pi
+use yomhook, only: lhook, dr_hook
+use parkind1, only: jprb, jpim
+implicit none
 
-INTEGER, INTENT(IN) :: nn       ! size of array
+integer, intent(in) :: nn       ! size of array
 
-REAL(KIND=real_umphys), INTENT(IN)    :: x(nn)    ! input array
+real(kind=r_bl), intent(in)    :: x(nn)    ! input array
 
-REAL(KIND=real_umphys), INTENT(OUT)   :: y(nn)    ! output array
+real(kind=r_bl), intent(out)   :: y(nn)    ! output array
 
 ! Local Variables
-INTEGER             :: i        ! Loop index
+integer             :: i        ! Loop index
 
-REAL(KIND=real_umphys), SAVE ::                                                &
+real(kind=r_bl), save ::                                                &
    c01,                                                                        &
         ! expansion coefficient of x
    c03,                                                                        &
@@ -59,7 +59,7 @@ REAL(KIND=real_umphys), SAVE ::                                                &
    factor
         ! common factor to all the coefficients
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    x02,                                                                        &
        ! x powered by 2
    x04,                                                                        &
@@ -73,23 +73,23 @@ REAL(KIND=real_umphys) ::                                                      &
    x12
        ! x powered by 12
 
-LOGICAL, SAVE       :: first = .TRUE.
+logical, save       :: first = .true.
                                 ! flag to indication first run
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    erfmax = 1.0
        ! upper limit of the value to avoid it outside domain
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_ERRFUNC'
+character(len=*), parameter :: RoutineName='MYM_ERRFUNC'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-IF (first) THEN
-  factor =  2.0 / SQRT(pi)
+if (first) then
+  factor =  2.0 / sqrt(pi)
   c01 = factor * 1.0
   c03 = factor * 1.0 /    3.0
   c05 = factor * 1.0 /   10.0
@@ -97,9 +97,9 @@ IF (first) THEN
   c09 = factor * 1.0 /  216.0
   c11 = factor * 1.0 / 1320.0
   c13 = factor * 1.0 / 9360.0
-  first = .FALSE.
-END IF
-DO i = 1, nn
+  first = .false.
+end if
+do i = 1, nn
   x02 = x(i) * x(i)
   x04 = x02 * x02
   x06 = x04 * x02
@@ -114,13 +114,13 @@ DO i = 1, nn
         + c09 * x08                                                            &
         - c11 * x10                                                            &
         + c13 * x12)
-  IF (x(i) > 0) THEN
-    y(i) = MIN(y(i), erfmax)
-  ELSE
-    y(i) = MAX(y(i), -erfmax)
-  END IF
-END DO
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE mym_errfunc
-END MODULE mym_errfunc_mod
+  if (x(i) > 0) then
+    y(i) = min(y(i), erfmax)
+  else
+    y(i) = max(y(i), -erfmax)
+  end if
+end do
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine mym_errfunc
+end module mym_errfunc_mod

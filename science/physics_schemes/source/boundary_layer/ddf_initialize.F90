@@ -12,40 +12,40 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE ddf_initialize_mod
+module ddf_initialize_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'DDF_INITIALIZE_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'DDF_INITIALIZE_MOD'
+contains
 
-SUBROUTINE ddf_initialize(                                                     &
+subroutine ddf_initialize(                                                     &
       bl_levels,                                                               &
       z_uv, z_tq, dbdz, dvdzm, delta_smag, r_mosurf, fb_surf, u_s, h_pbl,      &
       e_trb)
 
-USE atm_fields_bounds_mod, ONLY: tdims, pdims, tdims_s
-USE mym_const_mod, ONLY: e_trb_max
-USE mym_option_mod, ONLY: tke_levels, l_my_extra_level,                        &
+use atm_fields_bounds_mod, only: tdims, pdims, tdims_s
+use mym_const_mod, only: e_trb_max
+use mym_option_mod, only: tke_levels, l_my_extra_level,                        &
                           my_z_extra_fact, my_lowest_pd_surf,                  &
                           tke_cm_mx, tke_cm_fa
-USE parkind1, ONLY: jprb, jpim
-USE planet_constants_mod, ONLY: vkman
-USE yomhook, ONLY: lhook, dr_hook
-USE ddf_mix_length_mod, ONLY: ddf_mix_length
-USE mym_calcphi_mod, ONLY: mym_calcphi
-USE mym_diff_matcoef_mod, ONLY: mym_diff_matcoef
-USE mym_implic_mod, ONLY: mym_implic
-IMPLICIT NONE
+use parkind1, only: jprb, jpim
+use planet_constants_mod, only: vkman
+use yomhook, only: lhook, dr_hook
+use ddf_mix_length_mod, only: ddf_mix_length
+use mym_calcphi_mod, only: mym_calcphi
+use mym_diff_matcoef_mod, only: mym_diff_matcoef
+use mym_implic_mod, only: mym_implic
+implicit none
 
 ! Intent In Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                   ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
         bl_levels+1),                                                          &
                   ! Z_UV(*,K) is height of u level k
@@ -74,17 +74,17 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                   ! height of PBL determined by vertical profile
                   ! of SL
 
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    e_trb(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
                                                   bl_levels)
                   ! TKE defined on theta levels K-1
 
 ! Local variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k, ll,                                                                &
    itr_ini
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    r_pr,                                                                       &
    elq,                                                                        &
    sm,                                                                         &
@@ -92,7 +92,7 @@ REAL(KIND=real_umphys) ::                                                      &
    gm,                                                                         &
    gh
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    ekw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        tke_levels),                                                            &
    elm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
@@ -112,7 +112,7 @@ REAL(KIND=real_umphys) ::                                                      &
    pmz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                   &
    phh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    pr = 0.7,                                                                   &
                   ! Prandtl number
                   ! only in the initialization,
@@ -121,143 +121,143 @@ REAL(KIND=real_umphys), PARAMETER ::                                           &
                   ! factor of a diffusion coef of E_TRB to that of
                   ! momentum
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='DDF_INITIALIZE'
+character(len=*), parameter :: RoutineName='DDF_INITIALIZE'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 r_pr = 1.0 / pr
 
-IF (my_lowest_pd_surf == 0) THEN
-  l_my_extra_level = .FALSE.
+if (my_lowest_pd_surf == 0) then
+  l_my_extra_level = .false.
   my_z_extra_fact = 1.0
-END IF
+end if
 
 ! initial guess for e_trb, assuming neutral layer
 ! and set some parameters
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      IF (z_tq(i, j, k - 1) < h_pbl(i, j)) THEN
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      if (z_tq(i, j, k - 1) < h_pbl(i, j)) then
         coef_cm(i, j, k) = tke_cm_mx
-      ELSE
+      else
         coef_cm(i, j, k) = tke_cm_fa
-      END IF
+      end if
       sm = coef_cm(i, j, k)
       sh = coef_cm(i, j, k) * r_pr
       gm = dvdzm(i, j, k) ** 2
       gh = -dbdz(i, j, k)
       pdk(i, j, k) = sm * gm + sh * gh
-      IF (pdk(i, j, k) <= 0.0) THEN
+      if (pdk(i, j, k) <= 0.0) then
         pdk(i, j, k) = 0.0
         e_trb(i, j, k) = 0.0
-      ELSE
+      else
         e_trb(i, j, k) = 1.0e-5
-      END IF
-    END DO
-  END DO
-END DO
+      end if
+    end do
+  end do
+end do
 
-IF (my_lowest_pd_surf > 0) THEN
-  CALL mym_calcphi(                                                            &
+if (my_lowest_pd_surf > 0) then
+  call mym_calcphi(                                                            &
         bl_levels, z_tq, r_mosurf, pmz, phh)
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       pdk0(i, j) = 1.0 * u_s(i, j) ** 3 * pmz(i, j)                            &
          / (vkman * z_tq(i, j, 1))
-    END DO
-  END DO
-END IF  ! IF MY_lowest_pd_surf
+    end do
+  end do
+end if  ! IF MY_lowest_pd_surf
 
 itr_ini = tke_levels + 1
 
-DO ll = 1, itr_ini
-  CALL ddf_mix_length(                                                         &
+do ll = 1, itr_ini
+  call ddf_mix_length(                                                         &
     tdims%i_end, tdims%j_end, 0, 0, bl_levels,                                 &
     z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, h_pbl, e_trb,             &
     elm, coef_ce, ekw)
 
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
-        IF (e_trb(i, j, k) <= 0.0) THEN
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+        if (e_trb(i, j, k) <= 0.0) then
           ekw(i, j, k) = 0.0
-        END IF
+        end if
         dfm(i, j, k) = coef_cm(i, j, k) * ekw(i, j, k) * elm(i, j, k)
-      END DO
-    END DO
-  END DO
+      end do
+    end do
+  end do
 
-  CALL mym_diff_matcoef(                                                       &
+  call mym_diff_matcoef(                                                       &
         bl_levels, diff_fact, z_uv, z_tq, dfm, aa, bb, cc)
 
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
-        IF (bb(i, j, k) == 0.0) THEN
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+        if (bb(i, j, k) == 0.0) then
           aa(i, j, k) = 0.0
           bb(i, j, k) = 1.0
           cc(i, j, k) = 0.0
           e_trb(i, j, k) = 0.0
-        ELSE
+        else
           elq = ekw(i, j, k) * elm(i, j, k)
           aa(i, j, k) = - aa(i, j, k)
           bb(i, j, k) = - bb(i, j, k)                                          &
                   + ekw(i, j, k) * coef_ce(i, j, k)                            &
-                                     / MAX(elm(i, j, k), 1.0e-20)
-          bb(i, j, k) = SIGN(MAX(ABS(bb(i, j, k)), 1.0e-20_real_umphys),       &
+                                     / max(elm(i, j, k), 1.0e-20)
+          bb(i, j, k) = sign(max(abs(bb(i, j, k)), 1.0e-20_r_bl),       &
                                     bb(i, j, k))
 
           cc(i, j, k) = - cc(i, j, k)
           e_trb(i, j, k) = elq * pdk(i, j, k)
-        END IF
-      END DO
-    END DO
-  END DO
+        end if
+      end do
+    end do
+  end do
 
-  IF (my_lowest_pd_surf > 0) THEN
+  if (my_lowest_pd_surf > 0) then
     k = 2
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
-        IF (bb(i, j, k) /= 0.0 .AND. pdk(i, j, k) > 0.0) THEN
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+        if (bb(i, j, k) /= 0.0 .and. pdk(i, j, k) > 0.0) then
           e_trb(i, j, k) = pdk0(i, j)
-        END IF
-      END DO
-    END DO
-  END IF   ! IF MY_lowest_pd_surf > 0
+        end if
+      end do
+    end do
+  end if   ! IF MY_lowest_pd_surf > 0
 
-  CALL mym_implic(                                                             &
+  call mym_implic(                                                             &
                   tke_levels, 2, tke_levels, aa, bb, cc, e_trb)
-END DO  ! DO ll = 1, itr_ini
+end do  ! DO ll = 1, itr_ini
 
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      e_trb(i, j, k) = MIN(                                                    &
-                            MAX(e_trb(i, j, k), 1.0e-20),                      &
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      e_trb(i, j, k) = min(                                                    &
+                            max(e_trb(i, j, k), 1.0e-20),                      &
                                 e_trb_max)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     e_trb(i, j, 1) = 0.0
-  END DO
-END DO
+  end do
+end do
 
-DO k = tke_levels + 1, bl_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = tke_levels + 1, bl_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       e_trb(i, j, k) = 0.0
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE ddf_initialize
-END MODULE ddf_initialize_mod
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine ddf_initialize
+end module ddf_initialize_mod

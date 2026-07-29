@@ -12,29 +12,29 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_solve_simeq_lud_mod
+module mym_solve_simeq_lud_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_SOLVE_SIMEQ_LUD_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_SOLVE_SIMEQ_LUD_MOD'
+contains
 
-SUBROUTINE mym_solve_simeq_lud(                                                &
+subroutine mym_solve_simeq_lud(                                                &
       qq_tsq_k, qq_qsq_k, qq_cov_k,                                            &
       aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                                   &
       aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                                   &
       aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                          &
       tsq_k, qsq_k, cov_k)
 
-USE mym_option_mod, ONLY: tke_levels
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-IMPLICIT NONE
+use mym_option_mod, only: tke_levels
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+implicit none
 
 ! intent in variables
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    qq_tsq_k(tke_levels),                                                       &
    qq_qsq_k(tke_levels),                                                       &
    qq_cov_k(tke_levels),                                                       &
@@ -53,39 +53,39 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    pp_cq_k(tke_levels)
            ! matrix elements
 
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    tsq_k(tke_levels),                                                          &
    qsq_k(tke_levels),                                                          &
    cov_k(tke_levels)
            ! solved tsq, qsq and cov
 
-INTEGER ::                                                                     &
+integer ::                                                                     &
    k, l, m, n,                                                                 &
            ! loop indexes
    kpiv
            ! index of a pivot
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    wk
           ! work variables
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    amat(3 * tke_levels, 3 * tke_levels),                                       &
            ! coefficient matrix
    bvec(3 * tke_levels)
            ! vector in the right hand side
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_SOLVE_SIMEQ_LUD'
+character(len=*), parameter :: RoutineName='MYM_SOLVE_SIMEQ_LUD'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 amat(:, :) = 0.0
 
-DO k = 1, tke_levels
+do k = 1, tke_levels
   amat(k, k) = bb_tsq_k(k)
   amat(tke_levels + k, tke_levels + k) = bb_qsq_k(k)
   amat(2 * tke_levels + k, 2 * tke_levels + k)                                 &
@@ -93,85 +93,85 @@ DO k = 1, tke_levels
   bvec(k)    = qq_tsq_k(k)
   bvec(tke_levels + k) = qq_qsq_k(k)
   bvec(2 * tke_levels + k) = qq_cov_k(k)
-END DO
+end do
 
-DO k = 2, tke_levels
+do k = 2, tke_levels
   amat(k, k-1) = aa_tsq_k(k)
   amat(tke_levels + k, tke_levels + k - 1) = aa_qsq_k(k)
   amat(2 * tke_levels + k, 2 * tke_levels + k - 1)                             &
                                         = aa_cov_k(k)
-END DO
+end do
 
-DO k = 1, tke_levels - 1
+do k = 1, tke_levels - 1
   amat(k, k+1) = cc_tsq_k(k)
   amat(tke_levels + k, tke_levels + k + 1) = cc_qsq_k(k)
   amat(2 * tke_levels + k, 2 * tke_levels + k + 1)                             &
                                         = cc_cov_k(k)
-END DO
+end do
 
-DO k = 1, tke_levels
+do k = 1, tke_levels
   amat(k, 2 * tke_levels + k) = pp_tc_k(k)
   amat(tke_levels + k, 2 * tke_levels + k) = pp_qc_k(k)
   amat(2 * tke_levels + k, k) = pp_ct_k(k)
   amat(2 * tke_levels + k, tke_levels + k) = pp_cq_k(k)
-END DO
+end do
 
 n = 3 * tke_levels
 ! main part
-DO k = 1, n
+do k = 1, n
   kpiv = k
-  wk  = ABS(amat(k, k))
-  DO l = k + 1, n
-    IF (ABS(amat(l, k)) > wk) THEN
+  wk  = abs(amat(k, k))
+  do l = k + 1, n
+    if (abs(amat(l, k)) > wk) then
       kpiv = l
-      wk  = ABS(amat(l, k))
-    END IF
-  END DO
+      wk  = abs(amat(l, k))
+    end if
+  end do
 
-  IF (kpiv /= k) THEN
-    DO m = 1, n
+  if (kpiv /= k) then
+    do m = 1, n
       wk       = amat(k, m)
       amat(k, m)    = amat(kpiv, m)
       amat(kpiv, m) = wk
-    END DO
+    end do
     wk   = bvec(k)
     bvec(k) = bvec(kpiv)
     bvec(kpiv) = wk
-  END IF
+  end if
 
   amat(k, k) = 1.0 / amat(k, k)
 
-  DO l = k + 1, n
+  do l = k + 1, n
     amat(l, k) = amat(l, k) * amat(k, k)
-  END DO
+  end do
 
-  DO m = k + 1, n
-    DO l = k+1, n
+  do m = k + 1, n
+    do l = k+1, n
       amat(l, m) = amat(l, m) - amat(k, m) * amat(l, k)
-    END DO
-  END DO
-END DO  ! loop k = 1, n
+    end do
+  end do
+end do  ! loop k = 1, n
 
-DO m = 1, n - 1
-  DO l = m + 1, n
+do m = 1, n - 1
+  do l = m + 1, n
     bvec(l) = bvec(l) - bvec(m) * amat(l, m)
-  END DO
-END DO
+  end do
+end do
 
-DO m = n, 1, -1
+do m = n, 1, -1
   bvec(m) = bvec(m) * amat(m, m)
-  DO l = 1, m - 1
+  do l = 1, m - 1
     bvec(l) = bvec(l) - amat(l, m) * bvec(m)
-  END DO
-END DO
+  end do
+end do
 
-DO k = 1, tke_levels
+do k = 1, tke_levels
   tsq_k(k) = bvec(k)
   qsq_k(k) = bvec(tke_levels + k)
   cov_k(k) = bvec(2 * tke_levels + k)
-END DO
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+end do
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_solve_simeq_lud
-END MODULE mym_solve_simeq_lud_mod
+end subroutine mym_solve_simeq_lud
+end module mym_solve_simeq_lud_mod

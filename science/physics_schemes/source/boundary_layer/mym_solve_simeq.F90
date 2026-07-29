@@ -13,16 +13,16 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_solve_simeq_mod
+module mym_solve_simeq_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_SOLVE_SIMEQ_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_SOLVE_SIMEQ_MOD'
+contains
 
-SUBROUTINE mym_solve_simeq(                                                    &
+subroutine mym_solve_simeq(                                                    &
 ! IN levels
       bl_levels,                                                               &
 ! IN fields
@@ -31,20 +31,20 @@ SUBROUTINE mym_solve_simeq(                                                    &
 ! OUT fields
       tsq, qsq, cov)
 
-USE atm_fields_bounds_mod, ONLY: tdims
-USE mym_option_mod, ONLY: tke_levels
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-USE mym_solve_simeq_bcgstab_mod, ONLY: mym_solve_simeq_bcgstab
-USE mym_solve_simeq_lud_mod, ONLY: mym_solve_simeq_lud
-IMPLICIT NONE
+use atm_fields_bounds_mod, only: tdims
+use mym_option_mod, only: tke_levels
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+use mym_solve_simeq_bcgstab_mod, only: mym_solve_simeq_bcgstab
+use mym_solve_simeq_lud_mod, only: mym_solve_simeq_lud
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                  ! Max. no. of "boundary" level
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    ! matrix elements (for meanings of each, see the document)
    qq_tsq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
           tke_levels),                                                         &
@@ -79,7 +79,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    pp_cq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          tke_levels)
 
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    tsq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        bl_levels),                                                             &
                  ! Self covariance of liquid potential temperature
@@ -94,11 +94,11 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
                  ! (thetal'qw') defined on theta levels K-1
 
 ! Local variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k,                                                                    &
    endflag
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    ! one-dimensional variables to secure continuous memory accesses
    qq_tsq_k(tke_levels),                                                       &
    qq_qsq_k(tke_levels),                                                       &
@@ -121,15 +121,15 @@ REAL(KIND=real_umphys) ::                                                      &
    cov_k(tke_levels)
 
 ! Parameters
-INTEGER, PARAMETER ::                                                          &
+integer, parameter ::                                                          &
    max_itr    = 500
              ! the maximum iteration number
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    eps       = 1.0e-15
              ! convergence creteria
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    tsq_scale = 1.0e0,                                                          &
    qsq_scale = 1.0e6,                                                          &
    cov_scale = 1.0e3,                                                          &
@@ -142,19 +142,19 @@ REAL(KIND=real_umphys), PARAMETER ::                                           &
    cq_scale = cov_scale * r_qsq_scale
              ! scaling factors for the matrix elements
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_SOLVE_SIMEQ'
+character(len=*), parameter :: RoutineName='MYM_SOLVE_SIMEQ'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
 
     ! Copy to 1dim variables to secure continuous memory accesses
-    DO k = 1, tke_levels
+    do k = 1, tke_levels
       qq_tsq_k(k) = qq_tsq(i, j, k) * tsq_scale
       qq_qsq_k(k) = qq_qsq(i, j, k) * qsq_scale
       qq_cov_k(k) = qq_cov(i, j, k) * cov_scale
@@ -171,9 +171,9 @@ DO j = tdims%j_start, tdims%j_end
       cc_cov_k(k) = cc_cov(i, j, k)
       pp_ct_k(k)  = pp_ct(i, j, k)  * ct_scale
       pp_cq_k(k)  = pp_cq(i, j, k)  * cq_scale
-    END DO
+    end do
 
-    CALL  mym_solve_simeq_bcgstab(                                             &
+    call  mym_solve_simeq_bcgstab(                                             &
             max_itr, eps,                                                      &
             qq_tsq_k, qq_qsq_k, qq_cov_k,                                      &
             aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                             &
@@ -182,27 +182,27 @@ DO j = tdims%j_start, tdims%j_end
             pp_ct_k, pp_cq_k,                                                  &
             tsq_k, qsq_k, cov_k, endflag)
 
-    IF (endflag < 0) THEN
+    if (endflag < 0) then
       ! if failed to converge, solve eqs. by LU decomposition
-      CALL mym_solve_simeq_lud(                                                &
+      call mym_solve_simeq_lud(                                                &
             qq_tsq_k, qq_qsq_k, qq_cov_k,                                      &
             aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                             &
             aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                             &
             aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                    &
             tsq_k, qsq_k, cov_k)
-    END IF
+    end if
 
     ! set the values into the original arrays.
-    DO k = 1, tke_levels
+    do k = 1, tke_levels
       tsq(i, j, k) = tsq_k(k) * r_tsq_scale
       qsq(i, j, k) = qsq_k(k) * r_qsq_scale
       cov(i, j, k) = cov_k(k) * r_cov_scale
-    END DO
+    end do
 
-  END DO !loop i = tdims%i_start, tdims%i_end
-END DO   !loop j = tdims%j_start, tdims%j_end
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+  end do !loop i = tdims%i_start, tdims%i_end
+end do   !loop j = tdims%j_start, tdims%j_end
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_solve_simeq
-END MODULE mym_solve_simeq_mod
+end subroutine mym_solve_simeq
+end module mym_solve_simeq_mod

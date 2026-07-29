@@ -33,35 +33,35 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_const_set_mod
+module mym_const_set_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_CONST_SET_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_CONST_SET_MOD'
+contains
 
-SUBROUTINE mym_const_set
+subroutine mym_const_set
 
-USE mym_const_mod, ONLY: g1,b1,b2,c2,c3,c4,c5,pr,a1,c1,a2,g2,a1_2,             &
+use mym_const_mod, only: g1,b1,b2,c2,c3,c4,c5,pr,a1,c1,a2,g2,a1_2,             &
     rfc,f1,f2,rf1,rf2,smc,shc,ri1,ri2,ri3,ri4,cc2,cc3,e1c,e2c,e3c,             &
     e4c,e5c,my_alpha1,my_alpha2,my_alpha3,my_alpha4,elt_min,                   &
     one_third,two_thirds,coef_trbvar_diff_tke,coef_trbvar_diff,                &
     qke_max,e_trb_max
-USE mym_option_mod, ONLY: l_my3_improved_closure
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-IMPLICIT NONE
+use mym_option_mod, only: l_my3_improved_closure
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+implicit none
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_CONST_SET'
+character(len=*), parameter :: RoutineName='MYM_CONST_SET'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-IF (l_my3_improved_closure) THEN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (l_my3_improved_closure) then
   ! closure constants in the improved MY model (MYNN)
   g1  =  0.235
   b1  = 24.0
@@ -71,7 +71,7 @@ IF (l_my3_improved_closure) THEN
   c4  =  0.0
   c5  =  0.2
   pr  =  0.74
-ELSE
+else
   ! closure constants in the original MY model
   g1 = 0.222
   b1 = 16.6
@@ -81,7 +81,7 @@ ELSE
   c4 = 0.0
   c5 = 0.0
   pr  =  0.80
-END IF
+end if
 ! Combined constants
 a1  = b1 * ( 1.0 - 3.0 * g1 ) / 6.0
 c1  = g1 - 1.0 / ( 3.0 * a1 * b1 ** (1.0 / 3.0))
@@ -127,8 +127,8 @@ coef_trbvar_diff = 1.0
 qke_max = 500.0
 e_trb_max = 0.5 * qke_max
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_const_set
-END MODULE mym_const_set_mod
+end subroutine mym_const_set
+end module mym_const_set_mod

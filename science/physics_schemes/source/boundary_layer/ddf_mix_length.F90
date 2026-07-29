@@ -13,32 +13,32 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE ddf_mix_length_mod
+module ddf_mix_length_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'DDF_MIX_LENGTH_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'DDF_MIX_LENGTH_MOD'
+contains
 
-SUBROUTINE ddf_mix_length(                                                     &
+subroutine ddf_mix_length(                                                     &
       row_length, rows, halo_i, halo_j, bl_levels,                             &
       z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, h_pbl, e_trb,           &
       elm, coef_ce, ekw)
 
-USE mym_option_mod, ONLY: tke_dlen,                                            &
+use mym_option_mod, only: tke_dlen,                                            &
             my_length, ddf_length, non_local_like_length,                      &
             l_tke_dlen_blackadar, tke_levels
-USE parkind1, ONLY: jprb, jpim
-USE planet_constants_mod, ONLY: vkman
-USE atm_fields_bounds_mod, ONLY: tdims
-USE yomhook, ONLY: lhook, dr_hook
-USE mym_length_mod, ONLY: mym_length
-IMPLICIT NONE
+use parkind1, only: jprb, jpim
+use planet_constants_mod, only: vkman
+use atm_fields_bounds_mod, only: tdims
+use yomhook, only: lhook, dr_hook
+use mym_length_mod, only: mym_length
+implicit none
 
 ! Intent In Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    row_length,                                                                 &
                   ! Local number of points on a row
    rows,                                                                       &
@@ -50,7 +50,7 @@ INTEGER, INTENT(IN) ::                                                         &
    bl_levels
                   ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_uv(row_length,rows,bl_levels+1),                                          &
                   ! Z_UV(*,K) is height of u level k
    z_tq(row_length,rows,bl_levels),                                            &
@@ -73,7 +73,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
          tdims%j_start:tdims%j_end, bl_levels)
                   ! TKE defined on theta levels K-1
 
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    elm(row_length, rows, tke_levels),                                          &
                   ! mixing length
    coef_ce(row_length, rows, tke_levels),                                      &
@@ -82,10 +82,10 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
                   ! SQRT(e_trb)
 
 ! Local variables
-INTEGER :: i, j, k
+integer :: i, j, k
                  ! loop counter
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    rbv,                                                                        &
                   ! reciprocal of Brunt-Vaisala frequency
    elb,                                                                        &
@@ -95,114 +95,114 @@ REAL(KIND=real_umphys) ::                                                      &
    delta_z
                   ! vertical grid spacing
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    qke(1-halo_i:row_length+halo_i, 1-halo_j:rows+halo_j,                       &
                                                   bl_levels),                  &
                   ! twice of TKE (denoted to q**2) on theta level K-1
    qkw(row_length, rows, tke_levels)
                   ! q=sqrt(qke) on theta level K-1
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='DDF_MIX_LENGTH'
+character(len=*), parameter :: RoutineName='DDF_MIX_LENGTH'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-DO k = 2, tke_levels
-  DO j = 1, rows
-    DO i = 1, row_length
-      ekw(i, j, k) = SQRT(MAX(e_trb(i, j, k), 1.0e-20))
-    END DO
-  END DO
-END DO
+do k = 2, tke_levels
+  do j = 1, rows
+    do i = 1, row_length
+      ekw(i, j, k) = sqrt(max(e_trb(i, j, k), 1.0e-20))
+    end do
+  end do
+end do
 
-IF (tke_dlen == my_length) THEN
-  DO k = 2, tke_levels
-    DO j = 1, rows
-      DO i = 1, row_length
+if (tke_dlen == my_length) then
+  do k = 2, tke_levels
+    do j = 1, rows
+      do i = 1, row_length
         qke(i, j, k) = 2.0 * e_trb(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL mym_length(                                                             &
+      end do
+    end do
+  end do
+  call mym_length(                                                             &
         row_length, rows, halo_i, halo_j, bl_levels,                           &
         qke, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf,                  &
         qkw, elm)
-ELSE IF (tke_dlen == ddf_length                                                &
-   .OR. tke_dlen == non_local_like_length) THEN
-  DO k = 2, tke_levels
-    DO j = 1, rows
-      DO i = 1, row_length
+else if (tke_dlen == ddf_length                                                &
+   .or. tke_dlen == non_local_like_length) then
+  do k = 2, tke_levels
+    do j = 1, rows
+      do i = 1, row_length
         delta_z = z_uv(i, j, k) - z_uv(i, j, k - 1)
-        IF (dbdz(i, j, k) > 0.0) THEN
-          rbv = 1.0 / SQRT(dbdz(i, j, k))
-          elb = MAX(MIN(0.76 * ekw(i, j, k) * rbv,                             &
+        if (dbdz(i, j, k) > 0.0) then
+          rbv = 1.0 / sqrt(dbdz(i, j, k))
+          elb = max(min(0.76 * ekw(i, j, k) * rbv,                             &
                         delta_z), 1.0e-10)
-        ELSE
+        else
           elb = delta_z
-        END IF
+        end if
         elm(i, j, k) = elb
-      END DO
-    END DO
-  END DO
+      end do
+    end do
+  end do
 
-  IF (tke_dlen == non_local_like_length) THEN
-    DO k = 2, tke_levels
-      DO j = 1, rows
-        DO i = 1, row_length
-          IF (z_tq(i, j, k - 1) < h_pbl(i, j) ) THEN
+  if (tke_dlen == non_local_like_length) then
+    do k = 2, tke_levels
+      do j = 1, rows
+        do i = 1, row_length
+          if (z_tq(i, j, k - 1) < h_pbl(i, j) ) then
             elm(i, j, k) = 0.25 * 1.8 * h_pbl(i, j)                            &
-                   * (1.0 - EXP(                                               &
+                   * (1.0 - exp(                                               &
                              -4.0 * z_tq(i, j, k - 1)/h_pbl(i, j))             &
-                      - 0.0003 * EXP(                                          &
+                      - 0.0003 * exp(                                          &
                             8.0 * z_tq(i, j, k - 1) / h_pbl(i, j)))
-          END IF
-        END DO
-      END DO
-    END DO
-  END IF  ! if tke_dlen == non_local_like_length
+          end if
+        end do
+      end do
+    end do
+  end if  ! if tke_dlen == non_local_like_length
 
-  IF (l_tke_dlen_blackadar) THEN
-    DO k = 2, tke_levels
-      DO j = 1, rows
-        DO i = 1, row_length
+  if (l_tke_dlen_blackadar) then
+    do k = 2, tke_levels
+      do j = 1, rows
+        do i = 1, row_length
           els = vkman * z_tq(i, j, k - 1)
           elm(i, j, k) = els / (1.0 + els / elm(i, j, k))
-        END DO
-      END DO
-    END DO
-  END IF
-END IF
+        end do
+      end do
+    end do
+  end if
+end if
 
 ! for diagnostics
-DO j = 1, rows
-  DO i = 1, row_length
+do j = 1, rows
+  do i = 1, row_length
     elm(i, j, 1) = elm(i, j, 2)
-  END DO
-END DO
+  end do
+end do
 
-IF (tke_dlen == non_local_like_length) THEN
-  DO k = 2, tke_levels
-    DO j = 1, rows
-      DO i = 1, row_length
+if (tke_dlen == non_local_like_length) then
+  do k = 2, tke_levels
+    do j = 1, rows
+      do i = 1, row_length
         coef_ce(i, j, k) = 0.41
-      END DO
-    END DO
-  END DO
-ELSE
-  DO k = 2, tke_levels
-    DO j = 1, rows
-      DO i = 1, row_length
+      end do
+    end do
+  end do
+else
+  do k = 2, tke_levels
+    do j = 1, rows
+      do i = 1, row_length
         coef_ce(i, j, k) = 0.19 + 0.74 * elm(i, j, k)                          &
                               / (z_uv(i, j, k) - z_uv(i, j, k - 1))
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE ddf_mix_length
-END MODULE ddf_mix_length_mod
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine ddf_mix_length
+end module ddf_mix_length_mod

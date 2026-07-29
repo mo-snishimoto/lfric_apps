@@ -13,36 +13,36 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_ex_flux_uv_mod
+module mym_ex_flux_uv_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_EX_FLUX_UV_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_EX_FLUX_UV_MOD'
+contains
 
-SUBROUTINE mym_ex_flux_uv(                                                     &
+subroutine mym_ex_flux_uv(                                                     &
         dimsi, dimsi_s, dimso, bl_levels,                                      &
         rdz_u_v, rhokm_u_v, rhogamuv_uv, u_v, tau_xy_fd_uv,                    &
         tau_x_y, tau_grad, tau_count_grad)
 
-USE atm_fields_bounds_mod, ONLY: array_dims
-USE jules_surface_mod, ONLY: formdrag, explicit_stress
-USE yomhook, ONLY: lhook, dr_hook
-USE parkind1, ONLY: jprb, jpim
-IMPLICIT NONE
+use atm_fields_bounds_mod, only: array_dims
+use jules_surface_mod, only: formdrag, explicit_stress
+use yomhook, only: lhook, dr_hook
+use parkind1, only: jprb, jpim
+implicit none
 
 ! Intent IN Variables
-TYPE(array_dims), INTENT(IN) ::                                                &
+type(array_dims), intent(in) ::                                                &
    dimsi,      & ! Array dimensions for the inputs
    dimsi_s,    & ! Array dimensions for input u or v (has haloes).
    dimso         ! Array dimensions for the outputs and work variables
 
-INTEGER, INTENT(IN) :: bl_levels
+integer, intent(in) :: bl_levels
                  ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    rdz_u_v (dimsi%i_start:dimsi%i_end,                                         &
             dimsi%j_start:dimsi%j_end, 2:bl_levels),                           &
                  ! Reciprocal of the vertical
@@ -68,7 +68,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  !    at a UV point
 
 ! Intent INOUT Variables
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
    tau_x_y (dimso%i_start:dimso%i_end,                                         &
             dimso%j_start:dimso%j_end, bl_levels)
                  ! explicit x_y-component of
@@ -78,7 +78,7 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
                  ! set to "missing data". (N/sq m)
 
 ! Intent OUT Variables
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    tau_grad(dimso%i_start:dimso%i_end,                                         &
             dimso%j_start:dimso%j_end,bl_levels),                              &
                  ! k*du/dz grad stress (kg/m/s2)
@@ -87,52 +87,52 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
                  ! Counter gradient stress (kg/m/s2)
 
 ! LOCAL VARIABLES.
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_EX_FLUX_UV'
+character(len=*), parameter :: RoutineName='MYM_EX_FLUX_UV'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 k=1
-DO j = dimso%j_start, dimso%j_end
-  DO i = dimso%i_start, dimso%i_end
+do j = dimso%j_start, dimso%j_end
+  do i = dimso%i_start, dimso%i_end
     tau_grad(i,j,k) = 0.0
     tau_count_grad(i,j,k) = 0.0
-  END DO
-END DO
+  end do
+end do
 
-DO k = 2, bl_levels
-  DO j = dimso%j_start, dimso%j_end
-    DO i = dimso%i_start, dimso%i_end
+do k = 2, bl_levels
+  do j = dimso%j_start, dimso%j_end
+    do i = dimso%i_start, dimso%i_end
 
       tau_grad(i,j,k) = rhokm_u_v(i,j,k) *                                     &
                      ( u_v(i,j,k) - u_v(i,j,k-1) ) *rdz_u_v(i,j,k)
       tau_count_grad(i,j,k) = rhogamuv_uv(i, j, k)
       tau_x_y(i,j,k) = tau_grad(i,j,k) + tau_count_grad(i,j,k)
 
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 ! Add explicit orographic stress, noting that the surface stress
 ! is to be added later
 
-IF (formdrag  ==  explicit_stress) THEN
-  DO k = 2, bl_levels
-    DO j = dimso%j_start, dimso%j_end
-      DO i = dimso%i_start, dimso%i_end
+if (formdrag  ==  explicit_stress) then
+  do k = 2, bl_levels
+    do j = dimso%j_start, dimso%j_end
+      do i = dimso%i_start, dimso%i_end
         tau_x_y(i,j,k) = tau_x_y(i,j,k) + tau_xy_fd_uv(i,j,k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE mym_ex_flux_uv
-END MODULE mym_ex_flux_uv_mod
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine mym_ex_flux_uv
+end module mym_ex_flux_uv_mod

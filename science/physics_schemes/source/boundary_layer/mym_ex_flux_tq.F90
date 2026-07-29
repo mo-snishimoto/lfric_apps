@@ -13,35 +13,35 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_ex_flux_tq_mod
+module mym_ex_flux_tq_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_EX_FLUX_TQ_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_EX_FLUX_TQ_MOD'
+contains
 
-SUBROUTINE mym_ex_flux_tq(                                                     &
+subroutine mym_ex_flux_tq(                                                     &
       bl_levels,                                                               &
       tl, qw, rhokh, rhogamt, rhogamq, rdz,                                    &
       ftl, fqw)
 
-USE atm_fields_bounds_mod, ONLY: tdims, pdims
-USE model_domain_mod,      ONLY: model_type, mt_single_column
-USE planet_constants_mod,  ONLY: cp, grcp
+use atm_fields_bounds_mod, only: tdims, pdims
+use model_domain_mod,      only: model_type, mt_single_column
+use planet_constants_mod,  only: cp, grcp
 
-USE yomhook, ONLY: lhook, dr_hook
-USE parkind1, ONLY: jprb, jpim
+use yomhook, only: lhook, dr_hook
+use parkind1, only: jprb, jpim
 
-IMPLICIT NONE
+implicit none
 
 ! INTENT IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                  ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end, bl_levels),         &
                    ! Liquid/frozen water temperture (K)
    qw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end, bl_levels),         &
@@ -66,7 +66,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                    ! K-1 to level K.
 
 ! INTENT OUT Variables
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
    ftl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),         &
                    ! FTL(,K) contains net turb
                    ! sensible heat flux into layer K
@@ -80,14 +80,14 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
                    ! from surface, 'E'.
                    ! defined on rho levels
 
-CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'MYM_EX_FLUX_TQ'
+character(len=*), parameter ::  RoutineName = 'MYM_EX_FLUX_TQ'
 
 ! LOCAL VARIABLES.
 
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    grad_ftl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
             bl_levels),                                                        &
                    ! Gradient part of FTL
@@ -103,28 +103,28 @@ REAL(KIND=real_umphys) ::                                                      &
                   bl_levels)
                    ! Counter gradient part of FQW
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
 !-----------------------------------------------------------------------
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-DO k = 1, bl_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 1, bl_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       grad_ftl(i,j,k)=0.0
       grad_fqw(i,j,k)=0.0
       count_grad_ftl(i,j,k)=0.0
       count_grad_fqw(i,j,k)=0.0
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO k = 2, bl_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, bl_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       grad_ftl(i,j,k)= - rhokh(i,j,k) *                                        &
                 ( ( ( tl(i,j,k) - tl(i,j,k-1) ) * rdz(i,j,k) )                 &
                                                         + grcp )
@@ -134,11 +134,11 @@ DO k = 2, bl_levels
       count_grad_fqw(i,j,k) = -rhogamq(i,j,k)
       ftl(i,j,k) = grad_ftl(i,j,k) + count_grad_ftl(i,j,k)
       fqw(i,j,k) = grad_fqw(i,j,k) + count_grad_fqw(i,j,k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE mym_ex_flux_tq
-END MODULE mym_ex_flux_tq_mod
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine mym_ex_flux_tq
+end module mym_ex_flux_tq_mod

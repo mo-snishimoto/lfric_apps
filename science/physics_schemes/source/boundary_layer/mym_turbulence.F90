@@ -34,16 +34,16 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_turbulence_mod
+module mym_turbulence_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_TURBULENCE_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_TURBULENCE_MOD'
+contains
 
-SUBROUTINE mym_turbulence(                                                     &
+subroutine mym_turbulence(                                                     &
 ! IN levels/switches
       bl_levels, levflag, BL_diag,                                             &
 ! IN fields
@@ -56,31 +56,31 @@ SUBROUTINE mym_turbulence(                                                     &
 ! OUT fields
       dfu_cg, dfv_cg, dft_cg, dfq_cg)
 
-USE atm_fields_bounds_mod, ONLY: tdims, pdims, tdims_l, tdims_s
-USE bl_diags_mod, ONLY: strnewbldiag
-USE conversions_mod, ONLY: pi
-USE mym_const_mod, ONLY: e1c,e2c,e3c,e4c,e5c,a1,a2,c1,b2,qke_max,              &
+use atm_fields_bounds_mod, only: tdims, pdims, tdims_l, tdims_s
+use bl_diags_mod, only: strnewbldiag
+use conversions_mod, only: pi
+use mym_const_mod, only: e1c,e2c,e3c,e4c,e5c,a1,a2,c1,b2,qke_max,              &
       coef_trbvar_diff,coef_trbvar_diff_tke,two_thirds,a1_2,                   &
       b1,one_third,cc3
-USE mym_option_mod, ONLY:                                                      &
+use mym_option_mod, only:                                                      &
       my_lowest_pd_surf, l_my_extra_level, my_z_extra_fact,                    &
       l_my_prod_adj, my_prod_adj_fact, tke_levels,                             &
       l_my_lowest_pd_surf_tqc
 
-USE model_domain_mod, ONLY: model_type, mt_single_column
+use model_domain_mod, only: model_type, mt_single_column
 
-USE parkind1, ONLY: jprb, jpim
-USE planet_constants_mod, ONLY: vkman
-USE yomhook, ONLY: lhook, dr_hook
+use parkind1, only: jprb, jpim
+use planet_constants_mod, only: vkman
+use yomhook, only: lhook, dr_hook
 
-USE mym_length_mod, ONLY: mym_length
-USE mym_level2_mod, ONLY: mym_level2
-USE mym_update_covariance_mod, ONLY: mym_update_covariance
-USE mym_update_fields_mod, ONLY: mym_update_fields
-IMPLICIT NONE
+use mym_length_mod, only: mym_length
+use mym_level2_mod, only: mym_level2
+use mym_update_covariance_mod, only: mym_update_covariance
+use mym_update_fields_mod, only: mym_update_fields
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels,                                                                  &
                  ! Max. no. of "boundary" levels
    levflag
@@ -88,7 +88,7 @@ INTEGER, INTENT(IN) ::                                                         &
                  ! 2: level 2.5
                  ! 3: level 3
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
         bl_levels+1),                                                          &
                  ! Z_UV(*,K) is height of u level k
@@ -159,7 +159,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  ! gradient function for scalars at surface
 
 ! Intent INOUT Variables
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
    qke(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,            &
        bl_levels),                                                             &
                  ! twice of TKE (denoted to q**2) on theta level K-1
@@ -184,10 +184,10 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
                  ! on theta level K-1
 
 !  Declaration of BL diagnostics.
-TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
+type (strnewbldiag), intent(in out) :: BL_diag
 
 ! Intent OUT Variables
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    dfu_cg(tdims_s%i_start:tdims_s%i_end,tdims_s%j_start:tdims_s%j_end,         &
           2:bl_levels),                                                        &
                  ! counter gradient term for u
@@ -207,11 +207,11 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
 
 ! Local variables
 ! Scalar
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k, k_start, k_start_cor
                  ! Loop indexes
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    e1,                                                                         &
                  ! a variable denoted to E1 in the papers
    e3,                                                                         &
@@ -260,7 +260,7 @@ REAL(KIND=real_umphys) ::                                                      &
                  ! upper limit for difference between cov in level 3
                  ! and level 2
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    gm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                  ! square of wind shear on theta level K-1
                  ! (a denominator of gradient Richardson number)
@@ -408,7 +408,7 @@ REAL(KIND=real_umphys) ::                                                      &
          tke_levels)
                  ! cov derived by level 2
 
-REAL(KIND=real_umphys), ALLOCATABLE ::                                         &
+real(kind=r_bl), allocatable ::                                         &
    ! These variables are required only when imp_mode /= FULL_IMPL
    ! So usually they are not used.
    ! (That is why they have an "allocatable" attribute.)
@@ -425,39 +425,39 @@ REAL(KIND=real_umphys), ALLOCATABLE ::                                         &
    rp_cov(:, :, :)
                  ! production term of cov
 
-INTEGER, PARAMETER ::                                                          &
+integer, parameter ::                                                          &
    ! Symbols for a switch
    full_impl = 0,                                                              &
    half_impl = 1,                                                              &
    expl      = 2
 
-INTEGER, PARAMETER ::                                                          &
+integer, parameter ::                                                          &
    imp_mode = full_impl
       ! mode to integrate covariances
 
-CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'MYM_TURBULENCE'
+character(len=*), parameter ::  RoutineName = 'MYM_TURBULENCE'
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-IF (l_my_extra_level) THEN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (l_my_extra_level) then
   k_start = 1
-ELSE
+else
   k_start = 2
-END IF
+end if
 
-CALL mym_level2(                                                               &
+call mym_level2(                                                               &
       bl_levels,dbdz, dvdzm,gm, gh, sm, sh)
 
-CALL mym_length(                                                               &
+call mym_length(                                                               &
       tdims%i_end,tdims%j_end,tdims_l%halo_i,tdims_l%halo_j,bl_levels,         &
       qke, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, qkw, el)
 
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       elsq(i, j, k) = el(i, j, k) ** 2
       q2sq = b1 * elsq(i, j, k)                                                &
            * (sm(i, j, k) * gm(i, j, k) + sh(i, j, k) * gh(i, j, k))
@@ -466,8 +466,8 @@ DO k = 2, tke_levels
       ghel(i, j, k) = gh(i, j, k) * elsq(i, j, k)
 
       ! adjust SM and SH by SQRT(q3sq / q2sq)
-      IF ( q3sq(i, j, k) < q2sq ) THEN
-        qdiv(i, j, k) = SQRT(q3sq(i, j, k) / q2sq)
+      if ( q3sq(i, j, k) < q2sq ) then
+        qdiv(i, j, k) = sqrt(q3sq(i, j, k) / q2sq)
         sm(i, j, k) = sm(i, j, k) * qdiv(i, j, k)
         sh(i, j, k) = sh(i, j, k) * qdiv(i, j, k)
 
@@ -479,15 +479,15 @@ DO k = 2, tke_levels
         e4 = e1 - e4c * ghel(i, j, k) * qdiv(i, j, k) ** 2
         eden = e2(i, j, k) * e4                                                &
              + e3 * e5c * gmel(i, j, k) * qdiv(i, j, k) ** 2
-        eden = MAX(eden, 1.0e-20)
+        eden = max(eden, 1.0e-20)
         reden = 1.0 / eden
-      ELSE
+      else
         e1 = q3sq(i, j, k) - e1c * ghel(i, j, k)
         e2(i, j, k) = q3sq(i, j, k) - e2c * ghel(i, j, k)
         e3 = e1 + e3c * ghel(i, j, k)
         e4 = e1 - e4c * ghel(i, j, k)
         eden = e2(i, j, k) * e4 + e3 * e5c * gmel(i, j, k)
-        eden = MAX(eden, 1.0e-20)
+        eden = max(eden, 1.0e-20)
         reden = 1.0 / eden
 
         qdiv(i, j, k) = 1.0
@@ -496,7 +496,7 @@ DO k = 2, tke_levels
         sh(i, j, k) = q3sq(i, j, k)                                            &
              * a2 * (e2(i, j, k) + 3.0 * c1 * e5c * gmel(i, j, k))             &
              * reden
-      END IF ! test if q3sq < q2sq
+      end if ! test if q3sq < q2sq
       cu25(i, j, k) =(e2(i, j, k)                                              &
            + 3.0 * c1 * e5c * gmel(i, j, k)                                    &
            * qdiv(i, j, k) ** 2) * one_third * reden
@@ -504,38 +504,38 @@ DO k = 2, tke_levels
            * (e4 - 0.5 * e4c * ghel(i, j, k) * qdiv(i, j, k) ** 2)
       cw25(i, j, k) = cu25(i, j, k) * e1
       cu25(i, j, k) = 1.0 - cv25(i, j, k) - cw25(i, j, k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-IF ( levflag == 3 ) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if ( levflag == 3 ) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         t2sq = qdiv(i, j, k) * b2 * elsq(i, j, k)                              &
                      * sh(i, j, k) * dtldz(i, j, k) ** 2
         r2sq = qdiv(i, j, k) * b2 * elsq(i, j, k)                              &
                      * sh(i, j, k) * dqwdz(i, j, k) ** 2
         c2sq(i, j, k) = qdiv(i, j, k) * b2 * elsq(i, j, k)                     &
               * sh(i, j, k) * dtldz(i, j, k) * dqwdz(i, j, k)
-        t3sq = MAX(tsq(i, j, k), 0.0)
-        r3sq = MAX(qsq(i, j, k), 0.0)
+        t3sq = max(tsq(i, j, k), 0.0)
+        r3sq = max(qsq(i, j, k), 0.0)
         c3sq = cov(i, j, k)
 
-        c3sq = SIGN( MIN( ABS(c3sq), SQRT(t3sq*r3sq) ), c3sq )
+        c3sq = sign( min( abs(c3sq), sqrt(t3sq*r3sq) ), c3sq )
 
         t2sq = vt(i, j, k) * t2sq + vq(i, j, k) * c2sq(i, j, k)
         r2sq = vt(i, j, k) * c2sq(i, j, k) + vq(i, j, k) * r2sq
-        c2sq(i, j, k) = MAX(vt(i, j, k) * t2sq + vq(i, j, k) * r2sq,           &
+        c2sq(i, j, k) = max(vt(i, j, k) * t2sq + vq(i, j, k) * r2sq,           &
                             0.0)
         t3sq = vt(i, j, k) * t3sq + vq(i, j, k) * c3sq
         r3sq = vt(i, j, k) * c3sq + vq(i, j, k) * r3sq
-        c3sq = MAX(vt(i, j, k) * t3sq + vq(i, j, k) * r3sq, 0.0)
+        c3sq = max(vt(i, j, k) * t3sq + vq(i, j, k) * r3sq, 0.0)
 
         !  Limitation on q, instead of L/q
-        IF ( q3sq(i, j, k) < -gh(i, j, k) * elsq(i, j, k)) THEN
+        if ( q3sq(i, j, k) < -gh(i, j, k) * elsq(i, j, k)) then
           q3sq(i, j, k) = -elsq(i, j, k) * gh(i, j, k)
-        END IF
+        end if
 
         ! Limitation on c3sq (0.12 =< cw =< 0.76)
         ! e2 = q^2 * phi2'
@@ -557,21 +557,21 @@ IF ( levflag == 3 ) THEN
                  *( e2(i, j, k)*e4c                                            &
                        - e3c*e5c*gmel(i, j, k) * qdiv(i, j, k)**2 )
 
-        IF ( wden /= 0.0 ) THEN
+        if ( wden /= 0.0 ) then
           clow = q3sq(i, j, k) * ( 0.12-cw25(i, j, k) )*eden/wden
           cupp = q3sq(i, j, k) *( 0.76-cw25(i, j, k) )*eden/wden
 
-          IF ( wden > 0.0 ) THEN
-            c3sq  = MIN( MAX( c3sq, c2sq(i, j, k) + clow),                     &
+          if ( wden > 0.0 ) then
+            c3sq  = min( max( c3sq, c2sq(i, j, k) + clow),                     &
                                      c2sq(i, j, k) + cupp)
-          ELSE
-            c3sq  = MAX( MIN( c3sq, c2sq(i, j, k) + clow),                     &
+          else
+            c3sq  = max( min( c3sq, c2sq(i, j, k) + clow),                     &
                                      c2sq(i, j, k) + cupp)
-          END IF
-        END IF
+          end if
+        end if
 
         e1   = e2(i, j, k) + e5c*gmel(i, j, k) * qdiv(i, j, k) ** 2
-        eden = MAX( eden, 1.0e-20 )
+        eden = max( eden, 1.0e-20 )
         reden = 1.0 / eden
 
         e6c  = 3.0 * a2 *cc3 * gtr(i, j, k)                                    &
@@ -605,17 +605,17 @@ IF ( levflag == 3 ) THEN
         dfm(i, j, k) = elq * sm(i, j, k)
         dfh(i, j, k) = elq * sh(i, j, k)
 
-      END DO
-    END DO
-  END DO
+      end do
+    end do
+  end do
 
   ! Adjustment for Gamma_theta and Gamma_q
   ! After the adjustment, Gamma_theta and Gamma_q are calculated
-  IF (l_my_prod_adj .AND.                                                      &
-        (imp_mode == half_impl .OR. imp_mode == full_impl)) THEN
-    DO k = 2, tke_levels
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+  if (l_my_prod_adj .and.                                                      &
+        (imp_mode == half_impl .or. imp_mode == full_impl)) then
+    do k = 2, tke_levels
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
 
           elq = el(i, j, k) * qkw(i, j, k)
           elh = elq * qdiv(i, j, k)
@@ -625,18 +625,18 @@ IF ( levflag == 3 ) THEN
                         / (z_uv(i, j, k) - z_uv(i, j, k - 1))) ** 2
 
           pdt_tsq(i, j, k) = elh * gamt_tsq(i, j, k) * dtldz(i, j, k)
-          IF (disp_coef < pdt_tsq(i, j, k)) THEN
+          if (disp_coef < pdt_tsq(i, j, k)) then
             gamt_factor(i, j, k) = disp_coef / pdt_tsq(i, j, k)
-          ELSE
+          else
             gamt_factor(i, j, k) = 1.0
-          END IF
+          end if
 
           pdq_qsq(i, j, k) = elh * gamq_qsq(i, j, k) * dqwdz(i, j, k)
-          IF (disp_coef < pdq_qsq(i, j, k)) THEN
+          if (disp_coef < pdq_qsq(i, j, k)) then
             gamq_factor(i, j, k) = disp_coef / pdq_qsq(i, j, k)
-          ELSE
+          else
             gamq_factor(i, j, k) = 1.0
-          END IF
+          end if
 
           gamt_tsq(i, j, k) = gamt_factor(i, j, k) * gamt_tsq(i, j, k)
           gamt_cov(i, j, k) = gamt_factor(i, j, k) * gamt_cov(i, j, k)
@@ -649,11 +649,11 @@ IF ( levflag == 3 ) THEN
           pdc_cov(i, j, k) = elh                                               &
                         * (gamt_cov(i, j, k) * dqwdz(i, j, k)                  &
                          + gamq_cov(i, j, k) * dtldz(i, j, k)) * 0.5
-          IF (disp_coef < pdc_cov(i, j, k)) THEN
+          if (disp_coef < pdc_cov(i, j, k)) then
             pdc_factor(i, j, k) = disp_coef / pdc_cov(i, j, k)
-          ELSE
+          else
             pdc_factor(i, j, k) = 1.0
-          END IF
+          end if
           gamt_tsq(i, j, k) = pdc_factor(i, j, k) * gamt_tsq(i, j, k)
           gamt_cov(i, j, k) = pdc_factor(i, j, k) * gamt_cov(i, j, k)
           gamt_res(i, j, k) = pdc_factor(i, j, k) * gamt_res(i, j, k)
@@ -670,13 +670,13 @@ IF ( levflag == 3 ) THEN
                         + gamq_cov(i, j, k) * cov(i, j, k)                     &
                         + gamq_res(i, j, k)
 
-        END DO
-      END DO
-    END DO
-  ELSE
-    DO k = 2, tke_levels
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+        end do
+      end do
+    end do
+  else
+    do k = 2, tke_levels
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
           gamt(i, j, k) = gamt_tsq(i, j, k) * tsq(i, j, k)                     &
                         + gamt_cov(i, j, k) * cov(i, j, k)                     &
                         + gamt_res(i, j, k)
@@ -688,15 +688,15 @@ IF ( levflag == 3 ) THEN
           gamt_factor(i, j, k) = 1.0
           gamq_factor(i, j, k) = 1.0
           pdc_factor(i, j, k) = 1.0
-        END DO
-      END DO
-    END DO
-  END IF ! IF L_MY_PROD_ADJ
+        end do
+      end do
+    end do
+  end if ! IF L_MY_PROD_ADJ
 
   ! Calculate production terms
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
 
         elq = el(i, j, k) * qkw(i, j, k)
         elh = elq * qdiv(i, j, k)
@@ -735,13 +735,13 @@ IF ( levflag == 3 ) THEN
         dfv_cg(i, j, k) = elq * smd(i, j, k) * dvdz(i, j, k)
         dft_cg(i, j, k) = elq * gamt(i, j, k)
         dfq_cg(i, j, k) = elq * gamq(i, j, k)
-      END DO
-    END DO
-  END DO
-ELSE  ! level 2.5
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+      end do
+    end do
+  end do
+else  ! level 2.5
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         !     In Level 2.5, qdiv is not reset.
         gamt(i, j, k) = 0.0
         gamq(i, j, k) = 0.0
@@ -771,45 +771,45 @@ ELSE  ! level 2.5
         dfv_cg(i, j, k) = 0.0
         dft_cg(i, j, k) = 0.0
         dfq_cg(i, j, k) = 0.0
-      END DO
-    END DO
-  END DO
-END IF  ! test if levflag == 3
+      end do
+    end do
+  end do
+end if  ! test if levflag == 3
 
 ! Overwrite production terms by ones calculated with surface fluxes
-IF (my_lowest_pd_surf > 0) THEN
-  IF (l_my_extra_level) THEN
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (my_lowest_pd_surf > 0) then
+  if (l_my_extra_level) then
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         pdk(i, j, 1) = 1.0 * u_s(i, j) ** 3 * pmz(i, j)                        &
                     / (vkman * z_tq(i, j, 1) * my_z_extra_fact)
-      END DO
-    END DO
-    IF (l_my_lowest_pd_surf_tqc) THEN
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+      end do
+    end do
+    if (l_my_lowest_pd_surf_tqc) then
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
           phm  = 1.0 / u_s(i, j) * phh(i, j)                                   &
              / (vkman * z_tq(i, j, 1) * my_z_extra_fact)
           pdt(i, j, 1) = phm * ftl(i, j, 1) ** 2
           pdq(i, j, 1) = phm * fqw(i, j, 1) ** 2
           pdc(i, j, 1) = phm * ftl(i, j, 1) * fqw(i, j, 1)
-        END DO
-      END DO
-    END IF
-  ELSE    ! NOT L_MY_Extra_level
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+        end do
+      end do
+    end if
+  else    ! NOT L_MY_Extra_level
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         pdk(i, j, 2) = 1.0 * u_s(i, j) ** 3 * pmz(i, j)                        &
                              / (vkman * z_tq(i, j, 1))
         pdk(i, j, 1) = 0.0
         pdt(i, j, 1) = 0.0
         pdq(i, j, 1) = 0.0
         pdc(i, j, 1) = 0.0
-      END DO
-    END DO
-    IF (l_my_lowest_pd_surf_tqc) THEN
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+      end do
+    end do
+    if (l_my_lowest_pd_surf_tqc) then
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
           phm  = 1.0 / u_s(i, j)* phh(i, j)                                    &
                             / (vkman * z_tq(i, j, 1))
           pdt(i, j, 2) = phm * ftl(i, j, 1) ** 2
@@ -822,24 +822,24 @@ IF (my_lowest_pd_surf > 0) THEN
           pdc_tsq(i, j, 2) = 0.0
           pdc_qsq(i, j, 2) = 0.0
           pdc_cov(i, j, 2) = 0.0
-        END DO
-      END DO
-    END IF  ! IF L_MY_lowest_pd_surf_tqc
-  END IF ! IF L_MY_EXTRA_LEVEL
-ELSE  ! MY_lowest_pd_surf = 0
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+        end do
+      end do
+    end if  ! IF L_MY_lowest_pd_surf_tqc
+  end if ! IF L_MY_EXTRA_LEVEL
+else  ! MY_lowest_pd_surf = 0
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       pdk(i, j, 1) = 0.0
       pdt(i, j, 1) = 0.0
       pdq(i, j, 1) = 0.0
       pdc(i, j, 1) = 0.0
-    END DO
-  END DO
-END IF  ! IF MY_lowest_pd_surf
+    end do
+  end do
+end if  ! IF MY_lowest_pd_surf
 
 ! for diagnostics
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     gamt(i, j, 1) = 0.0
     gamq(i, j, 1) = 0.0
     gamv(i, j, 1) = 0.0
@@ -852,49 +852,49 @@ DO j = tdims%j_start, tdims%j_end
     pdc_tsq(i, j, 1) = 0.0
     pdc_qsq(i, j, 1) = 0.0
     pdc_cov(i, j, 1) = 0.0
-  END DO
-END DO
+  end do
+end do
 
-IF (BL_diag%l_tke_shr_prod) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_tke_shr_prod) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         elq = el(i, j, k) * qkw(i, j, k)
         BL_diag%tke_shr_prod(i, j, k) = el(i, j, k) * qkw(i, j, k)             &
                        * (sm(i, j, k) + smd(i, j, k)) * gm(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_tke_boy_prod) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_tke_boy_prod) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%tke_boy_prod(i, j, k) = el(i, j, k) * qkw(i, j, k)             &
                        * (sh(i, j, k) * gh(i, j, k)                            &
                                     + gamv(i, j, k)) + wb_ng(i,j,k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_tke_dissp) THEN
-  DO k = k_start, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_tke_dissp) then
+  do k = k_start, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%tke_dissp(i, j, k) = qkw(i, j, k) ** 3                         &
                                               / (b1 * el(i, j, k))
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (levflag == 3) THEN
+if (levflag == 3) then
   ! Integrate the covariances
 
-  IF (imp_mode == full_impl) THEN
-    CALL mym_update_covariance(                                                &
+  if (imp_mode == full_impl) then
+    call mym_update_covariance(                                                &
     ! IN levels
                 bl_levels,                                                     &
     ! IN fields
@@ -903,24 +903,24 @@ IF (levflag == 3) THEN
                 pdq_qsq, pdq_cov, pdq, pdc_cov, pdc_tsq, pdc_qsq, pdc,         &
     ! INOUT fields
                 tsq, qsq, cov)
-  ELSE   ! half implict or explicit
-    ALLOCATE(bp_tsq(tdims%i_start:tdims%i_end,                                 &
+  else   ! half implict or explicit
+    allocate(bp_tsq(tdims%i_start:tdims%i_end,                                 &
                     tdims%j_start:tdims%j_end, tke_levels))
-    ALLOCATE(rp_tsq(tdims%i_start:tdims%i_end,                                 &
+    allocate(rp_tsq(tdims%i_start:tdims%i_end,                                 &
                     tdims%j_start:tdims%j_end, tke_levels))
-    ALLOCATE(bp_qsq(tdims%i_start:tdims%i_end,                                 &
+    allocate(bp_qsq(tdims%i_start:tdims%i_end,                                 &
                     tdims%j_start:tdims%j_end, tke_levels))
-    ALLOCATE(rp_qsq(tdims%i_start:tdims%i_end,                                 &
+    allocate(rp_qsq(tdims%i_start:tdims%i_end,                                 &
                     tdims%j_start:tdims%j_end, tke_levels))
-    ALLOCATE(bp_cov(tdims%i_start:tdims%i_end,                                 &
+    allocate(bp_cov(tdims%i_start:tdims%i_end,                                 &
                     tdims%j_start:tdims%j_end, tke_levels))
-    ALLOCATE(rp_cov(tdims%i_start:tdims%i_end,                                 &
+    allocate(rp_cov(tdims%i_start:tdims%i_end,                                 &
                     tdims%j_start:tdims%j_end, tke_levels))
 
-    IF (imp_mode == half_impl) THEN
-      DO k = k_start, tke_levels
-        DO j = tdims%j_start, tdims%j_end
-          DO i = tdims%i_start, tdims%i_end
+    if (imp_mode == half_impl) then
+      do k = k_start, tke_levels
+        do j = tdims%j_start, tdims%j_end
+          do i = tdims%i_start, tdims%i_end
             pdt(i, j, k) = pdt(i, j, k)                                        &
                                 + pdt_cov(i, j, k) * cov(i, j, k)
 
@@ -941,13 +941,13 @@ IF (levflag == 3) THEN
 
             bp_cov(i, j, k) = b2l - 2.0 * pdc_cov(i, j, k)
             rp_cov(i, j, k) = 2.0 * pdc(i, j, k)
-          END DO
-        END DO
-      END DO
-    ELSE IF (imp_mode == expl) THEN
-      DO k = k_start, tke_levels
-        DO j = tdims%j_start, tdims%j_end
-          DO i = tdims%i_start, tdims%i_end
+          end do
+        end do
+      end do
+    else if (imp_mode == expl) then
+      do k = k_start, tke_levels
+        do j = tdims%j_start, tdims%j_end
+          do i = tdims%i_start, tdims%i_end
             pdt(i, j, k) = pdt(i, j, k)                                        &
                                 + pdt_tsq(i, j, k) * tsq(i, j, k)              &
                                 + pdt_cov(i, j, k) * cov(i, j, k)
@@ -969,70 +969,70 @@ IF (levflag == 3) THEN
 
             bp_cov(i, j, k) = b2l
             rp_cov(i, j, k) = 2.0 * pdc(i, j, k)
-          END DO
-        END DO
-      END DO
-    END IF
-    CALL mym_update_fields(                                                    &
+          end do
+        end do
+      end do
+    end if
+    call mym_update_fields(                                                    &
           bl_levels, coef_trbvar_diff, z_uv, z_tq, dfm, rp_tsq, bp_tsq,tsq)
 
-    CALL mym_update_fields(                                                    &
+    call mym_update_fields(                                                    &
           bl_levels, coef_trbvar_diff, z_uv, z_tq, dfm, rp_qsq, bp_qsq,qsq)
 
-    CALL mym_update_fields(                                                    &
+    call mym_update_fields(                                                    &
           bl_levels, coef_trbvar_diff, z_uv, z_tq, dfm, rp_cov, bp_cov,cov)
 
-    DEALLOCATE(rp_cov)
-    DEALLOCATE(bp_cov)
-    DEALLOCATE(rp_qsq)
-    DEALLOCATE(bp_qsq)
-    DEALLOCATE(rp_tsq)
-    DEALLOCATE(bp_tsq)
+    deallocate(rp_cov)
+    deallocate(bp_cov)
+    deallocate(rp_qsq)
+    deallocate(bp_qsq)
+    deallocate(rp_tsq)
+    deallocate(bp_tsq)
 
-  END IF  ! if imp_mode == FULL_IMPL
-ELSE  ! level 2.5
+  end if  ! if imp_mode == FULL_IMPL
+else  ! level 2.5
   ! In level 2.5, tsq, qsq, cov are diagnosed assuming balance between
   ! prodcution and dissipation.
-  DO k = k_start, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
-        IF (qkw(i, j, k) <= 1.0e-4) THEN
+  do k = k_start, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+        if (qkw(i, j, k) <= 1.0e-4) then
           b2l = 0.0
-        ELSE
+        else
           b2l = b2 * el(i, j, k) / qkw(i, j, k)
-        END IF
+        end if
         tsq(i, j, k) = b2l * 2.0 * pdt(i, j, k)
         qsq(i, j, k) = b2l * 2.0 * pdq(i, j, k)
         cov(i, j, k) = b2l * 2.0 * pdc(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (levflag >= 2) THEN
+if (levflag >= 2) then
   ! predict qke
-  IF (my_lowest_pd_surf > 0) THEN
+  if (my_lowest_pd_surf > 0) then
     k_start_cor = k_start + 1
-  ELSE
+  else
     k_start_cor = k_start
-  END IF
+  end if
 
-  IF (levflag == 3 .AND.                                                       &
-         (imp_mode == half_impl .OR. imp_mode == full_impl)) THEN
+  if (levflag == 3 .and.                                                       &
+         (imp_mode == half_impl .or. imp_mode == full_impl)) then
     ! add correction terms evaluated with integrated tsq, qsq and cov
-    DO k = k_start_cor, tke_levels
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+    do k = k_start_cor, tke_levels
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
 
-          t3sq = MAX(tsq(i, j, k), 0.0)
-          r3sq = MAX(qsq(i, j, k), 0.0)
+          t3sq = max(tsq(i, j, k), 0.0)
+          r3sq = max(qsq(i, j, k), 0.0)
           c3sq = cov(i, j, k)
 
-          c3sq = SIGN( MIN( ABS(c3sq), SQRT(t3sq*r3sq) ), c3sq )
+          c3sq = sign( min( abs(c3sq), sqrt(t3sq*r3sq) ), c3sq )
 
           t3sq = vt(i, j, k) * t3sq + vq(i, j, k) * c3sq
           r3sq = vt(i, j, k) * c3sq + vq(i, j, k) * r3sq
-          c3sq = MAX(vt(i, j, k) * t3sq + vq(i, j, k) * r3sq, 0.0)
+          c3sq = max(vt(i, j, k) * t3sq + vq(i, j, k) * r3sq, 0.0)
 
           elq = el(i, j, k) * qkw(i, j, k)
           smd(i, j, k) = smd_coef(i, j, k) * (c3sq - c2sq(i, j, k))
@@ -1040,60 +1040,60 @@ IF (levflag >= 2) THEN
           pdk(i, j, k) = pdk(i, j, k) + elq                                    &
                * (smd(i, j, k) * gm(i, j, k)                                   &
                   + gamv_coef(i, j, k) * (c3sq- c2sq(i, j, k)))
-        END DO
-      END DO
-    END DO
-  ELSE
-    DO k = k_start_cor, tke_levels
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+        end do
+      end do
+    end do
+  else
+    do k = k_start_cor, tke_levels
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
           pdk(i, j, k) = pdk(i, j, k)                                          &
                 + el(i, j, k) * qkw(i, j, k)                                   &
                       * (smd(i, j, k) * gm(i, j, k) + gamv(i, j, k))
-        END DO
-      END DO
-    END DO
-  END IF ! if test levflag == 3
+        end do
+      end do
+    end do
+  end if ! if test levflag == 3
 
-  DO k = k_start, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+  do k = k_start, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         b1l = b1 * el(i, j, k)
         bp(i, j, k) = 2.0 * qkw(i, j, k) / b1l
         rp(i, j, k) = 2.0 * pdk(i, j, k)
-      END DO
-    END DO
-  END DO
+      end do
+    end do
+  end do
 
-  CALL mym_update_fields(                                                      &
+  call mym_update_fields(                                                      &
         bl_levels, coef_trbvar_diff_tke, z_uv, z_tq, dfm, rp, bp, qke)
-ELSE
+else
    ! level 2
    ! diagnose qke
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         b2l = b2 * el(i, j, k)
-        qke(i, j, k) = (MAX(b2l * 2.0 * pdk(i, j, k), 0.0))                    &
+        qke(i, j, k) = (max(b2l * 2.0 * pdk(i, j, k), 0.0))                    &
                                                      ** two_thirds
-      END DO
-    END DO
-  END DO
-END IF  ! test if levflag >= 2
+      end do
+    end do
+  end do
+end if  ! test if levflag >= 2
 
-DO k = 1, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      qke(i, j, k) = MIN(MAX(qke(i, j, k), 1.0e-20), qke_max)
-      tsq(i, j, k) = MAX(tsq(i, j, k), 0.0)
-      qsq(i, j, k) = MAX(qsq(i, j, k), 0.0)
-    END DO
-  END DO
-END DO
+do k = 1, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      qke(i, j, k) = min(max(qke(i, j, k), 1.0e-20), qke_max)
+      tsq(i, j, k) = max(tsq(i, j, k), 0.0)
+      qsq(i, j, k) = max(qsq(i, j, k), 0.0)
+    end do
+  end do
+end do
 
-DO k = tke_levels + 1, bl_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = tke_levels + 1, bl_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       qke(i, j, k) = 0.0
       tsq(i, j, k) = 0.0
       qsq(i, j, k) = 0.0
@@ -1104,42 +1104,42 @@ DO k = tke_levels + 1, bl_levels
       dfv_cg(i, j, k) = 0.0
       dft_cg(i, j, k) = 0.0
       dfq_cg(i, j, k) = 0.0
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-IF (BL_diag%l_elm) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_elm) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%elm(i, j, k) = el(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_sm) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_sm) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%sm(i, j, k) = sm(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_sh) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_sh) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%sh(i, j, k) = sh(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_turbulence
-END MODULE mym_turbulence_mod
+end subroutine mym_turbulence
+end module mym_turbulence_mod

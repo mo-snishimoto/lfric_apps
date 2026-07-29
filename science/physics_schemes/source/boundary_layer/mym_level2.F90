@@ -33,31 +33,31 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_level2_mod
+module mym_level2_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_LEVEL2_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_LEVEL2_MOD'
+contains
 
-SUBROUTINE mym_level2(                                                         &
+subroutine mym_level2(                                                         &
       bl_levels, dbdz, dvdzm, gm, gh, sm, sh)
 
-USE atm_fields_bounds_mod, ONLY: tdims
-USE mym_const_mod, ONLY: ri1, ri2, ri3, ri4, rfc, rf1, rf2, shc, smc
-USE mym_option_mod, ONLY: tke_levels
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-IMPLICIT NONE
+use atm_fields_bounds_mod, only: tdims
+use mym_const_mod, only: ri1, ri2, ri3, ri4, rfc, rf1, rf2, shc, smc
+use mym_option_mod, only: tke_levels
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                   ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    dbdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2:tke_levels),                                                         &
                   ! Buoyancy gradient across layer
@@ -69,7 +69,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                   ! (:,:,K) repserents the value on theta level K-1
 
 ! Intent OUT Variables
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    gm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                  ! square of wind shear on theta level K-1
                  ! (a denominator of gradient Richardson number)
@@ -85,51 +85,51 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
                  ! scalars from level 2 scheme
                  ! define on theta level K-1
 ! Local variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k
                  ! Loop indexes
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    ri,                                                                         &
                  ! gradient Richardson Number
    rf
                  ! flux Richardson Number
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_LEVEL2'
+character(len=*), parameter :: RoutineName='MYM_LEVEL2'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       gm(i, j, k) =   dvdzm(i, j, k) * dvdzm(i, j, k)
       gh(i, j, k) = - dbdz(i, j, k)
       !   Gradient Richardson number
-      ri = - gh(i, j, k) / MAX( gm(i, j, k), 1.0e-10 )
+      ri = - gh(i, j, k) / max( gm(i, j, k), 1.0e-10 )
       !   Flux Richardson number
-      rf = MIN(ri1 * (ri + ri2 - SQRT(ri ** 2 - ri3 * ri + ri4)),              &
+      rf = min(ri1 * (ri + ri2 - sqrt(ri ** 2 - ri3 * ri + ri4)),              &
                rfc )
       sh(i, j, k) = shc * (rfc - rf) / (1.0 - rf)
       sm(i, j, k) = smc * (rf1 - rf) / (rf2 - rf) * sh(i, j, k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     gm(i, j, 1) = 0.0
     gh(i, j, 1) = 0.0
     sh(i, j, 1) = 0.0
     sm(i, j, 1) = 0.0
-  END DO
-END DO
+  end do
+end do
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_level2
-END MODULE mym_level2_mod
+end subroutine mym_level2
+end module mym_level2_mod

@@ -12,17 +12,17 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_solve_simeq_bcgstab_mod
+module mym_solve_simeq_bcgstab_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER,                                                   &
-                  PRIVATE :: ModuleName = 'MYM_SOLVE_SIMEQ_BCGSTAB_MOD'
-CONTAINS
+character(len=*), parameter,                                                   &
+                  private :: ModuleName = 'MYM_SOLVE_SIMEQ_BCGSTAB_MOD'
+contains
 
-SUBROUTINE mym_solve_simeq_bcgstab(                                            &
+subroutine mym_solve_simeq_bcgstab(                                            &
    max_itr, eps,                                                               &
    qq_tsq_k, qq_qsq_k, qq_cov_k,                                               &
    aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                                      &
@@ -30,25 +30,25 @@ SUBROUTINE mym_solve_simeq_bcgstab(                                            &
    aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                             &
    tsq_k, qsq_k, cov_k, endflag)
 
-USE mym_option_mod, ONLY: tke_levels
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
+use mym_option_mod, only: tke_levels
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
 
-USE mym_simeq_ilud2_decmp_mod, ONLY: mym_simeq_ilud2_decmp
-USE mym_simeq_matrix_prod_mod, ONLY: mym_simeq_matrix_prod
-USE mym_solve_simeq_ilud2_mod, ONLY: mym_solve_simeq_ilud2
-IMPLICIT NONE
+use mym_simeq_ilud2_decmp_mod, only: mym_simeq_ilud2_decmp
+use mym_simeq_matrix_prod_mod, only: mym_simeq_matrix_prod
+use mym_solve_simeq_ilud2_mod, only: mym_solve_simeq_ilud2
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    max_itr
              ! the maximum number of iterations
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    eps
              ! convergence condition
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    qq_tsq_k(tke_levels),                                                       &
    qq_qsq_k(tke_levels),                                                       &
    qq_cov_k(tke_levels),                                                       &
@@ -67,13 +67,13 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    pp_cq_k(tke_levels)
            ! matrix elements
 
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    tsq_k(tke_levels),                                                          &
    qsq_k(tke_levels),                                                          &
    cov_k(tke_levels)
            ! solved tsq, qsq and cov
 
-INTEGER, INTENT(OUT) ::                                                        &
+integer, intent(out) ::                                                        &
    endflag
            ! to indicate if converged
            ! positive means proper solution is obtains.
@@ -84,13 +84,13 @@ INTEGER, INTENT(OUT) ::                                                        &
            !     so gave up
 
 ! Local variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    k, m,                                                                       &
            ! loop indexes
    nitr
            ! a number of iterations
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    norm,                                                                       &
            ! residual norm
    r_qq_norm,                                                                  &
@@ -114,7 +114,7 @@ REAL(KIND=real_umphys) ::                                                      &
    max_val
            ! maximum value of solutions
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    rvec_tsq(tke_levels),                                                       &
    rvec_qsq(tke_levels),                                                       &
    rvec_cov(tke_levels),                                                       &
@@ -156,15 +156,15 @@ REAL(KIND=real_umphys) ::                                                      &
    ppp_cq_k(tke_levels, 0:2)
           ! elements of ILU(2)
           ! the second dimension corresponds to the fill-in level
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_SOLVE_SIMEQ_BCGSTAB'
+character(len=*), parameter :: RoutineName='MYM_SOLVE_SIMEQ_BCGSTAB'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-CALL mym_simeq_ilud2_decmp(                                                    &
+call mym_simeq_ilud2_decmp(                                                    &
    aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                                      &
    aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                                      &
    aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                             &
@@ -179,7 +179,7 @@ CALL mym_simeq_ilud2_decmp(                                                    &
 
 r_qq_norm = 0.0
 alp_num = 0.0
-DO k = 1, tke_levels
+do k = 1, tke_levels
   ! set the initial values
   tsq_k(k) = 0.0
   qsq_k(k) = 0.0
@@ -206,20 +206,20 @@ DO k = 1, tke_levels
                         +  qq_qsq_k(k) * qq_qsq_k(k)                           &
                         +  qq_cov_k(k) * qq_cov_k(k)
 
-END DO
+end do
 
-IF (r_qq_norm == 0.0) THEN
+if (r_qq_norm == 0.0) then
   r_qq_norm = 0.0
   endflag = 2
   nitr = 0
-ELSE
+else
   r_qq_norm = 1.0 / r_qq_norm
   endflag = -1
   nitr = max_itr
-END IF
+end if
 
-outer_m_loop: DO m = 1, nitr
-  CALL mym_solve_simeq_ilud2(                                                  &
+outer_m_loop: do m = 1, nitr
+  call mym_solve_simeq_ilud2(                                                  &
      0,                                                                        &
      pvec_tsq, pvec_qsq, pvec_cov,                                             &
      aap_tsq_k, r_bbp_tsq_k, ccp_tsq_k,                                        &
@@ -233,7 +233,7 @@ outer_m_loop: DO m = 1, nitr
      ppvec_tsq, ppvec_qsq, ppvec_cov)
 
   ! v = A pp
-  CALL mym_simeq_matrix_prod(                                                  &
+  call mym_simeq_matrix_prod(                                                  &
      aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                                    &
      aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                                    &
      aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                           &
@@ -241,24 +241,24 @@ outer_m_loop: DO m = 1, nitr
      vvec_tsq, vvec_qsq, vvec_cov)
 
   alp_den = 0.0
-  DO k = 1, tke_levels
+  do k = 1, tke_levels
     alp_den = alp_den + r0vec_tsq(k) * vvec_tsq(k)                             &
        + r0vec_qsq(k) * vvec_qsq(k)                                            &
        + r0vec_cov(k) * vvec_cov(k)
-  END DO
+  end do
 
-  IF (alp_den == 0.0) THEN
+  if (alp_den == 0.0) then
     endflag = 1
-  ELSE
+  else
     alp = alp_num / alp_den
 
-    DO k = 1, tke_levels
+    do k = 1, tke_levels
       svec_tsq(k) = rvec_tsq(k) - alp * vvec_tsq(k)
       svec_qsq(k) = rvec_qsq(k) - alp * vvec_qsq(k)
       svec_cov(k) = rvec_cov(k) - alp * vvec_cov(k)
-    END DO
+    end do
 
-    CALL mym_solve_simeq_ilud2(                                                &
+    call mym_solve_simeq_ilud2(                                                &
        0,                                                                      &
        svec_tsq, svec_qsq, svec_cov,                                           &
        aap_tsq_k, r_bbp_tsq_k, ccp_tsq_k,                                      &
@@ -272,7 +272,7 @@ outer_m_loop: DO m = 1, nitr
        ssvec_tsq, ssvec_qsq, ssvec_cov)
 
     ! t = A ss
-    CALL mym_simeq_matrix_prod(                                                &
+    call mym_simeq_matrix_prod(                                                &
        aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                                  &
        aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                                  &
        aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                         &
@@ -281,14 +281,14 @@ outer_m_loop: DO m = 1, nitr
 
     omg_num = 0.0
     omg_den = 0.0
-    DO k = 1, tke_levels
+    do k = 1, tke_levels
       omg_num = omg_num + tvec_tsq(k) * svec_tsq(k)                            &
                         + tvec_qsq(k) * svec_qsq(k)                            &
                         + tvec_cov(k) * svec_cov(k)
       omg_den = omg_den + tvec_tsq(k) * tvec_tsq(k)                            &
                         + tvec_qsq(k) * tvec_qsq(k)                            &
                         + tvec_cov(k) * tvec_cov(k)
-    END DO
+    end do
 
     omg = omg_num / omg_den
 
@@ -297,7 +297,7 @@ outer_m_loop: DO m = 1, nitr
     alp_num = 0.0
     norm = 0.0
     max_val = 0.0
-    DO k = 1, tke_levels
+    do k = 1, tke_levels
       tsq_k(k) = tsq_k(k) + alp * ppvec_tsq(k) + omg * ssvec_tsq(k)
       qsq_k(k) = qsq_k(k) + alp * ppvec_qsq(k) + omg * ssvec_qsq(k)
       cov_k(k) = cov_k(k) + alp * ppvec_cov(k) + omg * ssvec_cov(k)
@@ -312,39 +312,39 @@ outer_m_loop: DO m = 1, nitr
                   + rvec_qsq(k) * rvec_qsq(k)                                  &
                   + rvec_cov(k) * rvec_cov(k)
 
-      max_val = MAX(max_val, ABS(tsq_k(k)),                                    &
-                             ABS(qsq_k(k)),                                    &
-                             ABS(cov_k(k)))
-    END DO
-    err = SQRT(norm * r_qq_norm)
+      max_val = max(max_val, abs(tsq_k(k)),                                    &
+                             abs(qsq_k(k)),                                    &
+                             abs(cov_k(k)))
+    end do
+    err = sqrt(norm * r_qq_norm)
 
-    IF (err >= eps .AND. m < 30 .AND. max_val < 1.0e10) THEN
+    if (err >= eps .and. m < 30 .and. max_val < 1.0e10) then
       ! continue to the next step
-    ELSE IF (max_val > 100.0) THEN
+    else if (max_val > 100.0) then
       ! Unexpectedly huge
       endflag = -2
-    ELSE IF (err < eps) THEN
+    else if (err < eps) then
       ! Converged
       endflag = 0
-    END IF
-  END IF
-  IF (endflag /= -1) THEN
-    EXIT outer_m_loop
-  ELSE
+    end if
+  end if
+  if (endflag /= -1) then
+    exit outer_m_loop
+  else
     bet = alp_num * alp / (alp_den * omg)
-    DO k = 1, tke_levels
+    do k = 1, tke_levels
       pvec_tsq(k) = rvec_tsq(k)                                                &
                            + bet * (pvec_tsq(k) - omg * vvec_tsq(k))
       pvec_qsq(k) = rvec_qsq(k)                                                &
                            + bet * (pvec_qsq(k) - omg * vvec_qsq(k))
       pvec_cov(k) = rvec_cov(k)                                                &
                            + bet * (pvec_cov(k) - omg * vvec_cov(k))
-    END DO
-  END IF
-END DO outer_m_loop    ! loop m = 1, max_itr
+    end do
+  end if
+end do outer_m_loop    ! loop m = 1, max_itr
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_solve_simeq_bcgstab
-END MODULE mym_solve_simeq_bcgstab_mod
+end subroutine mym_solve_simeq_bcgstab
+end module mym_solve_simeq_bcgstab_mod

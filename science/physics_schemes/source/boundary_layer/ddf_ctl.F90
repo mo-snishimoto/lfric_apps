@@ -13,16 +13,16 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE ddf_ctl_mod
+module ddf_ctl_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'DDF_CTL_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'DDF_CTL_MOD'
+contains
 
-SUBROUTINE ddf_ctl(                                                            &
+subroutine ddf_ctl(                                                            &
 ! IN levels/switches
       bl_levels, BL_diag,                                                      &
 ! IN fields
@@ -32,34 +32,34 @@ SUBROUTINE ddf_ctl(                                                            &
 ! INOUT fields
       e_trb, rhokm, rhokh, zhpar_shcu)
 
-USE atm_fields_bounds_mod, ONLY: tdims_l, tdims, pdims, tdims_s
-USE bl_diags_mod, ONLY: strnewbldiag
-USE gen_phys_inputs_mod, ONLY: l_mr_physics
-USE model_domain_mod, ONLY: model_type, mt_single_column
-USE mym_const_mod, ONLY: e_trb_max
-USE mym_option_mod, ONLY: my_ini_dbdz_min, tke_cm_mx, l_shcu_buoy,             &
+use atm_fields_bounds_mod, only: tdims_l, tdims, pdims, tdims_s
+use bl_diags_mod, only: strnewbldiag
+use gen_phys_inputs_mod, only: l_mr_physics
+use model_domain_mod, only: model_type, mt_single_column
+use mym_const_mod, only: e_trb_max
+use mym_option_mod, only: my_ini_dbdz_min, tke_cm_mx, l_shcu_buoy,             &
       l_my_condense, tke_cm_fa, my_lowest_pd_surf, tke_levels,                 &
       l_my_ini_zero, l_my_initialize
 
-USE parkind1, ONLY: jprb, jpim
-USE planet_constants_mod, ONLY: vkman, kappa, pref, c_virtual, grcp, g
-USE yomhook, ONLY: lhook, dr_hook
+use parkind1, only: jprb, jpim
+use planet_constants_mod, only: vkman, kappa, pref, c_virtual, grcp, g
+use yomhook, only: lhook, dr_hook
 
-USE ddf_initialize_mod, ONLY: ddf_initialize
-USE ddf_mix_length_mod, ONLY: ddf_mix_length
-USE mym_calcphi_mod, ONLY: mym_calcphi
-USE mym_condensation_mod, ONLY: mym_condensation
-USE mym_const_set_mod, ONLY: mym_const_set
-USE mym_shcu_buoy_mod, ONLY: mym_shcu_buoy
-USE mym_update_fields_mod, ONLY: mym_update_fields
-IMPLICIT NONE
+use ddf_initialize_mod, only: ddf_initialize
+use ddf_mix_length_mod, only: ddf_mix_length
+use mym_calcphi_mod, only: mym_calcphi
+use mym_condensation_mod, only: mym_condensation
+use mym_const_set_mod, only: mym_const_set
+use mym_shcu_buoy_mod, only: mym_shcu_buoy
+use mym_update_fields_mod, only: mym_update_fields
+implicit none
 
 ! Intent In Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                   ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
         bl_levels+1),                                                          &
                   ! Z_UV(*,K) is height of u level k
@@ -144,7 +144,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    pstar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
                   ! surface pressure
 
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
    e_trb(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
                                                   bl_levels),                  &
                   ! TKE defined on theta levels K-1
@@ -163,14 +163,14 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
                   ! the non-gradient buoyancy flux
 
 !  Declaration of BL diagnostics.
-TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
+type (strnewbldiag), intent(in out) :: BL_diag
 
 ! Local Variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k
                   ! Loop indexes
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    r_weight1,                                                                  &
                   ! weight factor to interpolate variables on rho
                   ! levels onto theta levels
@@ -190,12 +190,12 @@ REAL(KIND=real_umphys) ::                                                      &
                   ! coefficient appeared in determining a diffusion
                   ! coefficients
 
-INTEGER ::                                                                     &
+integer ::                                                                     &
    flag_calc(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
                   ! flag to indicate whether the column should be
                   ! calculated
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    r_mosurf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),              &
                   ! reciprocal of Monin-Obkhov length
    rhokh_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
@@ -283,193 +283,193 @@ REAL(KIND=real_umphys) ::                                                      &
                   ! cloud fraction corrected by shallow cumulus
                   ! process on theta level K-1
 
-LOGICAL, SAVE ::                                                               &
-   l_first = .TRUE.
+logical, save ::                                                               &
+   l_first = .true.
                   ! flag to indicate if it is the first execution
 
-INTEGER, PARAMETER ::                                                          &
+integer, parameter ::                                                          &
   levflag = 2
                   ! For using subroutines for the MY model.
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
   c_corr = 2.0
                   ! coefficient appeared in parameterizing the width
                   ! of the bi-normal distribution function
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    diff_fact = 2.0
                   ! factor of a diffusion coef of E_TRB to that of
                   ! momentum
 
-CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'DDF_CTL'
+character(len=*), parameter ::  RoutineName = 'DDF_CTL'
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
 ! Calculate Monin-Obukov Length
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     r_mosurf(i,j)= -vkman*fb_surf(i,j)                                         &
-                     / MAX(u_s(i,j)*u_s(i,j)*u_s(i,j), TINY(1.0))
-  END DO
-END DO
+                     / max(u_s(i,j)*u_s(i,j)*u_s(i,j), tiny(1.0))
+  end do
+end do
 
 ! Calculate gradient functions
-IF (my_lowest_pd_surf > 0) THEN
-  CALL mym_calcphi(                                                            &
+if (my_lowest_pd_surf > 0) then
+  call mym_calcphi(                                                            &
         bl_levels, z_uv, r_mosurf, pmz, phh)
-END IF
+end if
 
 ! Calculate static energy to determine the top of mixed layer
-DO k = 1, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 1, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       sl(i, j, k) = tl(i, j, k) + grcp * z_tq(i, j, k)
       sl(i, j, k) = sl(i, j, k) * (1.0 + c_virtual * q(i, j, k)                &
                              - qcl(i, j, k) - qcf(i, j, k))
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 ! Determine the height of the top of mixed layer
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     flag_calc(i, j) = 1
     h_pbl(i, j) = z_tq(i, j, 1)
-  END DO
-END DO
-DO k = 2, tke_levels - 1
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      IF (flag_calc(i, j) == 1) THEN
-        IF (sl(i, j, k) > sl(i, j, 1)) THEN
+  end do
+end do
+do k = 2, tke_levels - 1
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      if (flag_calc(i, j) == 1) then
+        if (sl(i, j, k) > sl(i, j, 1)) then
           h_pbl(i, j) = z_tq(i, j, k - 1)                                      &
                + (z_tq(i, j, k) - z_tq(i, j, k - 1))                           &
                  * (sl(i, j, 1) - sl(i, j, k - 1))                             &
                / (sl(i, j, k) - sl(i, j, k - 1))
           flag_calc(i, j) = 0
-        END IF
-      END IF
-    END DO
-  END DO
-END DO
+        end if
+      end if
+    end do
+  end do
+end do
 
 ! Initialization. Executed only once.
 ! In the initialization, balance between production and dissipation
 ! is assumed. Diffusion coeffients required to determine production
 ! terms are calculated with stability functions.
-IF (l_first) THEN
-  CALL mym_const_set
+if (l_first) then
+  call mym_const_set
 
   ! IF the first value of e_trb has been set to be missing by the
   ! reconfiguration, the initialization for the whole domain
   ! is essential.
-  IF (l_my_initialize) THEN
-    IF (l_my_ini_zero) THEN
-      DO k = 1, bl_levels
-        DO j = tdims%j_start, tdims%j_end
-          DO i = tdims%i_start, tdims%i_end
+  if (l_my_initialize) then
+    if (l_my_ini_zero) then
+      do k = 1, bl_levels
+        do j = tdims%j_start, tdims%j_end
+          do i = tdims%i_start, tdims%i_end
             e_trb(i, j, k) = 0.0
-          END DO
-        END DO
-      END DO
-    ELSE  ! not l_my_ini_zero
+          end do
+        end do
+      end do
+    else  ! not l_my_ini_zero
       ! Initialize the prognostic variables by assuming the balance
       ! between production and dissipation terms
 
       ! In the initialization, DBDZ by the LS cloud scheme is used.
       ! To avoid to diagnose huge TKE, the lower limit for DBDZ
       ! is imposed.
-      DO k = 2, tke_levels
-        DO j = tdims%j_start, tdims%j_end
-          DO i = tdims%i_start, tdims%i_end
-            dbdz_l(i, j, k) = MAX(my_ini_dbdz_min, dbdz(i, j, k))
-          END DO
-        END DO
-      END DO
-      CALL ddf_initialize(                                                     &
+      do k = 2, tke_levels
+        do j = tdims%j_start, tdims%j_end
+          do i = tdims%i_start, tdims%i_end
+            dbdz_l(i, j, k) = max(my_ini_dbdz_min, dbdz(i, j, k))
+          end do
+        end do
+      end do
+      call ddf_initialize(                                                     &
          bl_levels,                                                            &
          z_uv, z_tq, dbdz_l, dvdzm, delta_smag, r_mosurf, fb_surf, u_s, h_pbl, &
          e_trb)
       ! Above tke_levels, the prognostic variables should be zeros.
-      DO k = tke_levels + 1, bl_levels
-        DO j = tdims%j_start, tdims%j_end
-          DO i = tdims%i_start, tdims%i_end
+      do k = tke_levels + 1, bl_levels
+        do j = tdims%j_start, tdims%j_end
+          do i = tdims%i_start, tdims%i_end
             e_trb(i, j, k) = 0.0
-          END DO
-        END DO
-      END DO
-    END IF  ! test if l_my_ini_zero
-  END IF  ! test if l_my_initialize
+          end do
+        end do
+      end do
+    end if  ! test if l_my_ini_zero
+  end if  ! test if l_my_initialize
 
-  IF (l_shcu_buoy .and. l_my_initialize) THEN
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+  if (l_shcu_buoy .and. l_my_initialize) then
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         zhpar_shcu(i, j) = z_tq(i, j, tke_levels-1)
-      END DO
-    END DO
-  END IF
-  l_first = .FALSE.
-END IF
+      end do
+    end do
+  end if
+  l_first = .false.
+end if
 
-CALL ddf_mix_length(                                                           &
+call ddf_mix_length(                                                           &
     tdims%i_end,tdims%j_end,tdims_l%halo_i,tdims_l%halo_j, bl_levels,          &
     z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, h_pbl, e_trb,             &
     elm, coef_ce, ekw)
 
   ! Calculate diffusion coefficients
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      IF (z_tq(i, j, k - 1) < h_pbl(i, j)) THEN
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      if (z_tq(i, j, k - 1) < h_pbl(i, j)) then
         coef_cm = tke_cm_mx
-      ELSE
+      else
         coef_cm = tke_cm_fa
-      END IF
+      end if
 
       r_pr = 1.0 + 2.0 * elm(i, j, k)                                          &
               / (z_uv(i, j, k) - z_uv(i, j, k - 1))
       rhokm(i, j, k) = coef_cm * elm(i, j, k) * ekw(i, j, k)
       rhokh_tq(i, j, k) = rhokm(i, j, k) * r_pr
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 ! Set virtual temperature, exner function and g/thetav
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       tv(i, j, k) = t(i, j, k - 1)                                             &
                    * (1.0 + c_virtual * q(i, j, k - 1)                         &
                          - qcl(i, j, k - 1) - qcf(i, j, k - 1))
       exner(i, j, k) =                                                         &
                 (p_theta_levels(i, j, k - 1) / pref) ** kappa
       gtr(i, j, k) = g / tv(i, j, k) * exner(i, j, k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 ! The covariances to be required by mym_condensation
 ! are diagnosed assuming balance between
 ! production and dissipation.
-IF (l_my_condense .OR. l_shcu_buoy) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (l_my_condense .or. l_shcu_buoy) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         tsq(i, j, k) = c_corr * elm(i, j, k) ** 2                              &
                                * dtldzm(i, j, k) ** 2
         qsq(i, j, k) = c_corr * elm(i, j, k) ** 2                              &
                                * dqwdzm(i, j, k) ** 2
         cov(i, j, k) = c_corr * elm(i, j, k) ** 2                              &
                                * dtldzm(i, j, k) * dqwdzm(i, j, k)
-      END DO
-    END DO
-  END DO
+      end do
+    end do
+  end do
 
-  CALL mym_condensation(                                                       &
+  call mym_condensation(                                                       &
   ! IN levels/switches
             bl_levels, levflag,                                                &
             BL_diag,                                                           &
@@ -477,23 +477,23 @@ IF (l_my_condense .OR. l_shcu_buoy) THEN
             qw, tl, t, p_theta_levels, tsq, qsq, cov,                          &
   ! OUT fields
             vt, vq, q1, cld, ql)
-END IF
+end if
 
-IF (.NOT. l_my_condense) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (.not. l_my_condense) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         ! convert buoy params from the UM notation to the MY notaation
         vt(i, j, k) = bt_gb(i, j, k - 1) * tv(i, j, k)
         vq(i, j, k) = bq_gb(i, j, k - 1) * tv(i, j, k)                         &
                                              / exner(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (l_shcu_buoy) THEN
-  CALL mym_shcu_buoy(                                                          &
+if (l_shcu_buoy) then
+  call mym_shcu_buoy(                                                          &
   ! IN levels/switches
              bl_levels, BL_diag,                                               &
   ! IN fields
@@ -501,21 +501,21 @@ IF (l_shcu_buoy) THEN
              u_p, v_p, t, q, qcl, qcf, q1, cld,                                &
   ! INOUT / OUT fields
              zhpar_shcu, frac_shcu, wb_ng)
-ELSE
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+else
+  do k = 1, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         wb_ng(i,j,k) = 0.0
         frac_shcu(i,j,k) = cld(i,j,k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
 ! Calculate production terms and coefficient of dissipation term.
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       dbdz_l(i, j, k) = gtr(i, j, k)                                           &
                           * (vt(i, j, k) * dtldzm(i, j, k)                     &
                                  + vq(i, j, k) * dqwdzm(i, j, k))
@@ -530,62 +530,62 @@ DO k = 2, tke_levels
 
       prod(i, j, k) = prod_m(i, j, k) + prod_h(i, j, k)
       disp_coef(i, j, k) = coef_ce(i, j, k) * ekw(i, j, k)                     &
-                         / MAX(elm(i, j, k), 1.0e-20)
+                         / max(elm(i, j, k), 1.0e-20)
 
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 ! Overwrite the production term at the lowest level by
 ! the one evaluated with surface fluxes.
-IF (my_lowest_pd_surf > 0) THEN
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+if (my_lowest_pd_surf > 0) then
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       prod(i, j, 2) = u_s(i, j) ** 3 * pmz(i, j)                               &
                              / (vkman * z_tq(i, j, 1))
-    END DO
-  END DO
-END IF
+    end do
+  end do
+end if
 
-CALL mym_update_fields(                                                        &
+call mym_update_fields(                                                        &
         bl_levels, diff_fact, z_uv, z_tq, rhokm, prod, disp_coef, e_trb)
 
-DO k = tke_levels + 1, bl_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = tke_levels + 1, bl_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       e_trb(i, j, k) = 0.0
       rhokm(i, j, k) = 0.0
       rhokh_tq(i, j, k) = 0.0
       rhokh(i, j, k) = 0.0
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      e_trb(i, j, k) = MIN(MAX(e_trb(i, j, k), 1.0e-20), e_trb_max)
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      e_trb(i, j, k) = min(max(e_trb(i, j, k), 1.0e-20), e_trb_max)
       rhokm(i, j, k) = rho_wet_tq(i, j, k - 1) * rhokm(i, j, k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 ! Note "RHO" here is always wet density (RHO_WET_TQ) so
 ! save multiplication of RHOKH to after interpolation
-IF (.NOT. l_mr_physics) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (.not. l_mr_physics) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         rhokh_tq(i, j, k) = rho_wet_tq(i, j, k - 1) * rhokh_tq(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
 ! Interpolate RHOKH_TQ on theta levels to rho levels
-DO k = 2, tke_levels - 1
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels - 1
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       r_weight1 = 1.0 / (z_tq(i,j,k) -                                         &
                                    z_tq(i,j, k-1))
       weight2 = (z_tq(i,j,k) -                                                 &
@@ -595,98 +595,98 @@ DO k = 2, tke_levels - 1
       rhokh(i,j,k) =                                                           &
                           weight3 * rhokh_tq(i,j,k+1)                          &
                          +weight2 * rhokh_tq(i,j,k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 k = tke_levels
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     r_weight1 = 1.0 / (z_tq(i,j,k) -                                           &
                                    z_tq(i,j, k-1))
     weight2 = (z_tq(i,j,k) -                                                   &
                           z_uv(i,j,k)) * r_weight1
 
     rhokh(i, j, k) = weight2 * rhokh_tq(i, j, k)
-  END DO
-END DO
+  end do
+end do
 
 ! Finally multiply RHOKH by dry density
-IF (l_mr_physics) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (l_mr_physics) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         rhokh(i, j, k) = rho_mix(i, j, k) * rhokh(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_dbdz) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_dbdz) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%dbdz(i, j, k) = dbdz_l(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_dvdzm) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_dvdzm) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%dvdzm(i,j,k) = dvdzm(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_tke_shr_prod) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_tke_shr_prod) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%tke_shr_prod(i, j, k) = prod_m(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_tke_boy_prod) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_tke_boy_prod) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%tke_boy_prod(i, j, k) = prod_h(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_tke_boy_prod) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_tke_boy_prod) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%tke_dissp(i, j, k) =                                           &
                  coef_ce(i, j, k) * (ekw(i, j, k)) ** 3                        &
-                           / MAX(elm(i, j, k), 1.0e-20)
-      END DO
-    END DO
-  END DO
-END IF
+                           / max(elm(i, j, k), 1.0e-20)
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_elm) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_elm) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%elm(i, j, k) = elm(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE ddf_ctl
-END MODULE ddf_ctl_mod
+end subroutine ddf_ctl
+end module ddf_ctl_mod

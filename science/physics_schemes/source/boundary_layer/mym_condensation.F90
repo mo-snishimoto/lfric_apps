@@ -37,16 +37,16 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_condensation_mod
+module mym_condensation_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_CONDENSATION_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_CONDENSATION_MOD'
+contains
 
-SUBROUTINE mym_condensation(                                                   &
+subroutine mym_condensation(                                                   &
 ! IN levels/switches
       bl_levels, levflag, BL_diag,                                             &
 ! IN fields
@@ -54,32 +54,32 @@ SUBROUTINE mym_condensation(                                                   &
 ! OUT fields
       vt, vq, q1, cld, ql)
 
-USE atm_fields_bounds_mod, ONLY: tdims
-USE bl_diags_mod, ONLY: strnewbldiag
-USE conversions_mod, ONLY: pi
-USE gen_phys_inputs_mod, ONLY: l_mr_physics
-USE mym_option_mod, ONLY: tke_levels
-USE planet_constants_mod, ONLY:                                                &
+use atm_fields_bounds_mod, only: tdims
+use bl_diags_mod, only: strnewbldiag
+use conversions_mod, only: pi
+use gen_phys_inputs_mod, only: l_mr_physics
+use mym_option_mod, only: tke_levels
+use planet_constants_mod, only:                                                &
     cp, r, repsilon, pref, kappa, c_virtual, one_minus_epsilon, ls
-USE water_constants_mod, ONLY: lc
+use water_constants_mod, only: lc
 
-USE model_domain_mod, ONLY: model_type, mt_single_column
+use model_domain_mod, only: model_type, mt_single_column
 
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
 
-USE mym_errfunc_mod, ONLY: mym_errfunc
-IMPLICIT NONE
+use mym_errfunc_mod, only: mym_errfunc
+implicit none
 
 ! Intent In Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels,                                                                  &
                   ! Max. no. of "boundary" levels
    levflag
                   ! flag to indicate the level of MY
                   ! 2: MY2.5, 3:MY3
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    qw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
                   ! Total water content
    tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
@@ -103,10 +103,10 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                   ! (thetal'qw') defined on theta levels K-1
 
 !  Declaration of BL diagnostics.
-TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
+type (strnewbldiag), intent(in out) :: BL_diag
 
 ! Intent OUT Variables
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    vt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                   ! Buoyancy parameter (coefficients of <w'thetal'>)
                   ! on theta K-1
@@ -124,10 +124,10 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
                   ! condensed liquid water content
 
 ! Local Variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k
                   ! loop indexes
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    rr2,                                                                        &
                   ! 1 / sqrt(2)
    rrp,                                                                        &
@@ -162,7 +162,7 @@ REAL(KIND=real_umphys) ::                                                      &
    rac
                   ! work variable
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    rice(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         tke_levels),                                                           &
                   ! ratio of ice.
@@ -203,7 +203,7 @@ REAL(KIND=real_umphys) ::                                                      &
    qsi(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels)
                   ! saturated specific ratio for ice
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    e0cw = 6.11e2,                                                              &
    tetn1w = 17.27,                                                             &
    tetn2w = 273.15,                                                            &
@@ -218,80 +218,80 @@ REAL(KIND=real_umphys), PARAMETER ::                                           &
    temp_ice = 237.15
                   ! Below this temperature, all of condensed water
                   ! should be ice. -36C
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    my_sgm_min_fct = 0.0,                                                       &
                   ! factor to set the lower limit for sgm
    my_sgm_max_fct = 1.0
                   ! factor to set the upper limit for sgm
 
-CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'MYM_CONDENSATION'
+character(len=*), parameter ::  RoutineName = 'MYM_CONDENSATION'
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-rr2 = 1.0 / SQRT(2.0)
-rrp = 1.0 / SQRT(2.0 * pi)
+rr2 = 1.0 / sqrt(2.0)
+rrp = 1.0 / sqrt(2.0 * pi)
 
 ! Here, qsw and qsi are saturated vapor pressure.
 ! Using the Teten's formula instead of the subroutine "qmix"
 ! because the saturated vapor pressure on liquid water is necessary
 ! even in sub-zero temperature.
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
 
-      qsw(i, j, k) = e0cw * EXP(tetn1w *                                       &
+      qsw(i, j, k) = e0cw * exp(tetn1w *                                       &
             (tl(i, j, k - 1)  - tetn2w)                                        &
                   / (tl(i, j, k - 1) - tetn3w) )
-      qsi(i, j, k) = e0ci * EXP(tetn1i *                                       &
+      qsi(i, j, k) = e0ci * exp(tetn1i *                                       &
             (tl(i, j, k - 1) - tetn2i)                                         &
            / (tl(i, j, k - 1) - tetn3i) )
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 ! convert to mixing ratio or specific humidity
-IF (l_mr_physics) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (l_mr_physics) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         qsw(i, j, k) = repsilon * qsw(i, j, k)                                 &
                                   / p_theta_levels(i, j, k - 1)
         qsi(i, j, k) = repsilon * qsi(i, j, k)                                 &
                                   / p_theta_levels(i, j, k - 1)
-      END DO
-    END DO
-  END DO
-ELSE
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+      end do
+    end do
+  end do
+else
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         qsw(i, j, k) = repsilon * qsw(i, j, k)                                 &
                         / (p_theta_levels(i, j, k - 1)                         &
                              - one_minus_epsilon * qsw(i, j, k))
         qsi(i, j, k) = repsilon * qsi(i, j, k)                                 &
                         / (p_theta_levels(i, j, k - 1)                         &
                              - one_minus_epsilon * qsi(i, j, k))
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
 ! Calculate sgm
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      IF (tl(i, j, k -1) >= ttriple) THEN
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      if (tl(i, j, k -1) >= ttriple) then
         rice(i, j, k) = 0.0
-      ELSE IF (tl(i, j, k - 1) < temp_ice) THEN
+      else if (tl(i, j, k - 1) < temp_ice) then
         rice(i, j, k) = 1.0
-      ELSE
+      else
         rice(i, j, k) = (ttriple - tl(i, j, k - 1))                            &
                                        / (ttriple - temp_ice)
-      END IF
+      end if
 
       hl = (1.0 - rice(i, j, k)) * lc + rice(i, j, k) * ls
       qsl = (1.0 - rice(i, j, k)) * qsw(i, j, k)                               &
@@ -306,74 +306,74 @@ DO k = 2, tke_levels
       alp(i, j, k) = 1.0 /(1.0 + dqsl * hl_ovr_cp(i, j, k))
       bet(i, j, k) = dqsl * exner(i, j, k)
 
-      t3sq = MAX(tsq(i, j, k), 0.0)
-      r3sq = MAX(qsq(i, j, k), 0.0)
+      t3sq = max(tsq(i, j, k), 0.0)
+      r3sq = max(qsq(i, j, k), 0.0)
       c3sq = cov(i, j, k)
-      c3sq = SIGN(MIN(ABS(c3sq), SQRT(t3sq * r3sq)), c3sq)
+      c3sq = sign(min(abs(c3sq), sqrt(t3sq * r3sq)), c3sq)
 
       r3sq = r3sq + bet(i, j, k) ** 2 * t3sq                                   &
            -2.0 * bet(i, j, k) * c3sq
-      alp_qsl = MIN(alp(i, j, k) * qsl, qw(i, j, k - 1))
-      sgm(i, j, k) = MAX(                                                      &
-                      MIN(0.5 * alp(i, j, k) * SQRT(MAX(r3sq, 0.0)),           &
+      alp_qsl = min(alp(i, j, k) * qsl, qw(i, j, k - 1))
+      sgm(i, j, k) = max(                                                      &
+                      min(0.5 * alp(i, j, k) * sqrt(max(r3sq, 0.0)),           &
                       my_sgm_max_fct * alp_qsl),                               &
                       my_sgm_min_fct * alp_qsl, 1.0e-10)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-IF (levflag /= 3) THEN
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+if (levflag /= 3) then
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       sgm(i, j, 2) = sgm(i, j, 3)
-    END DO
-  END DO
-END IF
+    end do
+  end do
+end if
 
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     erf_arg(i, j, 1) = 0.0
     cld(i, j, 1) = 0.0
     ql(i, j, 1) = 0.0
     sgm(i, j, 1) = 0.0
     q1(i, j, 1) = 0.0
-  END DO
-END DO
+  end do
+end do
 
 ! Preparation to calculate values of the err function
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       q1(i, j, k) = 0.5 * alp(i, j, k)                                         &
                              * qmq(i, j, k) / sgm(i, j, k)
       erf_arg(i, j, k) = q1(i, j, k) * rr2
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-CALL mym_errfunc(tdims%i_end*tdims%j_end*tke_levels, erf_arg, erf_val)
+call mym_errfunc(tdims%i_end*tdims%j_end*tke_levels, erf_arg, erf_val)
 
 ! Calculate the buoyancy parameters vt and vq
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       cld(i, j, k) = 0.5 * (1.0 + erf_val(i, j, k))
-      IF (ABS(q1(i, j, k)) > 10.0 ) THEN
+      if (abs(q1(i, j, k)) > 10.0 ) then
         eq1 = 0.0
-      ELSE
-        eq1  = rrp * EXP(- 0.5 * q1(i, j, k) ** 2)
-      END IF
+      else
+        eq1  = rrp * exp(- 0.5 * q1(i, j, k) ** 2)
+      end if
       ! qll = ql / (2 * sgm)
-      qll  = MAX(cld(i, j, k) * q1(i, j, k) + eq1, 0.0)
+      qll  = max(cld(i, j, k) * q1(i, j, k) + eq1, 0.0)
 
-      IF (qw(i, j, k) < 1.0e-10) THEN
+      if (qw(i, j, k) < 1.0e-10) then
         ql(i, j, k) = 0.0
-      ELSE
-        ql(i, j, k) = MAX(                                                     &
+      else
+        ql(i, j, k) = max(                                                     &
              2.0 * sgm(i, j, k) * qll, 0.0)
-      END IF
+      end if
       ! To avoid negative QV (for safety)
-      ql(i, j, k) = MIN(ql(i, j, k), qw(i, j, k - 1) * 0.5)
+      ql(i, j, k) = min(ql(i, j, k), qw(i, j, k - 1) * 0.5)
 
       r_exner = 1.0 / exner(i, j, k)
       q2p  = hl_ovr_cp(i, j, k) * r_exner
@@ -385,42 +385,42 @@ DO k = 2, tke_levels
 
       vt (i, j, k) = qt - rac * bet(i, j, k)
       vq (i, j, k) = c_virtual * pt_tmp + rac
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-IF (BL_diag%l_cf_trb) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_cf_trb) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%cf_trb(i, j, k) = cld(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_ql_trb) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_ql_trb) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%ql_trb(i, j, k) = ql(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_sgm_trb) THEN
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+if (BL_diag%l_sgm_trb) then
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         BL_diag%sgm_trb(i, j, k) = sgm(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE mym_condensation
-END MODULE mym_condensation_mod
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine mym_condensation
+end module mym_condensation_mod

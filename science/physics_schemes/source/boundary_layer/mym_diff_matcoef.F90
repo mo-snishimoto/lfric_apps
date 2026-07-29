@@ -13,35 +13,35 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_diff_matcoef_mod
+module mym_diff_matcoef_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_DIFF_MATCOEF_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_DIFF_MATCOEF_MOD'
+contains
 
-SUBROUTINE mym_diff_matcoef(bl_levels, coef, z_uv, z_tq, dfm, aa, bb, cc)
+subroutine mym_diff_matcoef(bl_levels, coef, z_uv, z_tq, dfm, aa, bb, cc)
 
-USE atm_fields_bounds_mod, ONLY: pdims, tdims_s, tdims
-USE mym_option_mod, ONLY:                                                      &
+use atm_fields_bounds_mod, only: pdims, tdims_s, tdims
+use mym_option_mod, only:                                                      &
       l_my_extra_level, my_z_extra_fact, tke_levels
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-IMPLICIT NONE
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                  ! Max. no. of "boundary" level
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    coef
                  ! factor for the diffusion coefficients to those for
                  ! momentum
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
        bl_levels+1),                                                           &
                  ! Z_UV(*,K) is height of u level k
@@ -53,7 +53,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  ! diffusion coefficients for momentum
 
 ! Intent OUT variables
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
                 ! coefficients of tri-diagonal equations
                 ! due to diffusion
    aa(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,tke_levels),         &
@@ -64,16 +64,16 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
                 ! coefs of fields on level K+1
 
 ! Local variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k, k_start
                 ! Loop indexes
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    km_m1,                                                                      &
                 ! diffusion coefficient on lower level by one
    km_p1
                 ! diffusion coefficient on upper level by one
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    r_dr_rho(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,               &
             tke_levels),                                                       &
                 ! reciprocal of grid spaces of rho levels
@@ -87,15 +87,15 @@ REAL(KIND=real_umphys) ::                                                      &
                 ! weight to interporate variables on theta levels
                 ! onto rho levels
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_DIFF_MATCOEF'
+character(len=*), parameter :: RoutineName='MYM_DIFF_MATCOEF'
 
 ! Calculate and save r_dr and weight
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 k = 1
 do j = tdims%j_start, tdims%j_end
@@ -107,22 +107,22 @@ do j = tdims%j_start, tdims%j_end
   end do
 end do
 
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       r_dr_theta(i, j, k) = 1.0 / (z_uv(i, j, k + 1) - z_uv(i, j, k))
       r_dr_rho(i, j, k) = 1.0 / (z_tq(i, j, k) - z_tq(i, j, k - 1))
 
       weight1(i, j, k) = (z_uv(i, j, k) - z_tq(i, j, k - 1)) * r_dr_rho(i, j, k)
       weight2(i, j, k) = (z_tq(i, j, k) - z_uv(i, j, k)) * r_dr_rho(i, j, k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 ! Calculate aa, bb, cc
 k = 2
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     km_m1 = coef * dfm(i, j, k)
     km_p1 = coef *                                                             &
                 (weight1(i, j, k) * dfm(i, j, k + 1)                           &
@@ -133,12 +133,12 @@ DO j = tdims%j_start, tdims%j_end
     aa(i, j, k) = km_m1 * r_dr_rho(i, j, k - 1)                                &
                                     * r_dr_theta(i, j, k - 1)
     bb(i, j, k) = -aa(i, j, k) - cc(i, j, k)
-  END DO
-END DO
+  end do
+end do
 
-DO k = 3, tke_levels - 1
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 3, tke_levels - 1
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       km_m1 = coef *                                                           &
                 (weight1(i, j, k - 1) * dfm(i, j, k)                           &
               +  weight2(i, j, k - 1) * dfm(i, j, k - 1))
@@ -152,13 +152,13 @@ DO k = 3, tke_levels - 1
                                        * r_dr_theta(i, j, k - 1)
       bb(i, j, k) = -aa(i, j, k) - cc(i, j, k)
 
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 k = tke_levels
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     km_m1 = coef *                                                             &
             (weight1(i, j, k - 1) * dfm(i, j, k)                               &
           +  weight2(i, j, k - 1) * dfm(i, j, k - 1))
@@ -171,40 +171,40 @@ DO j = tdims%j_start, tdims%j_end
                                        * r_dr_theta(i, j, k - 1)
     bb(i, j, k) = -aa(i, j, k) - cc(i, j, k)
 
-  END DO
-END DO
+  end do
+end do
 
-IF (l_my_extra_level) THEN
+if (l_my_extra_level) then
   k_start = 1
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       aa(i, j, 1) = 0.0
       cc(i, j, 1) = coef * dfm(i, j, 2)                                        &
               / (z_tq(i, j, 1)                                                &
                   * my_z_extra_fact) ** 2
 
       bb(i, j, 1) = - aa(i, j, 1) - cc(i, j, 1)
-    END DO
-  END DO
-ELSE
+    end do
+  end do
+else
   k_start = 2
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       aa(i, j, 1) = 0.0
       bb(i, j, 1) = 0.0
       cc(i, j, 1) = 0.0
-    END DO
-  END DO
-END IF
+    end do
+  end do
+end if
 
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     aa(i, j, k_start) = 0.0
     cc(i, j, tke_levels) = 0.0
-  END DO
-END DO
+  end do
+end do
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE mym_diff_matcoef
-END MODULE mym_diff_matcoef_mod
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine mym_diff_matcoef
+end module mym_diff_matcoef_mod

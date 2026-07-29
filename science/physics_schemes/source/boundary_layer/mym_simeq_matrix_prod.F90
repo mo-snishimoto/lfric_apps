@@ -13,27 +13,27 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_simeq_matrix_prod_mod
+module mym_simeq_matrix_prod_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_SIMEQ_MATRIX_PROD_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_SIMEQ_MATRIX_PROD_MOD'
+contains
 
-SUBROUTINE mym_simeq_matrix_prod(                                              &
+subroutine mym_simeq_matrix_prod(                                              &
       aa_tsq_k, bb_tsq_k, cc_tsq_k, pp_tc_k,                                   &
       aa_qsq_k, bb_qsq_k, cc_qsq_k, pp_qc_k,                                   &
       aa_cov_k, bb_cov_k, cc_cov_k, pp_ct_k, pp_cq_k,                          &
       x_tsq_k, x_qsq_k, x_cov_k,                                               &
       y_tsq_k, y_qsq_k, y_cov_k)
-USE mym_option_mod, ONLY: tke_levels
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-IMPLICIT NONE
+use mym_option_mod, only: tke_levels
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+implicit none
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    ! matrix elements (for meanings of each, see the document)
    aa_tsq_k(tke_levels),                                                       &
    bb_tsq_k(tke_levels),                                                       &
@@ -53,21 +53,21 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    x_qsq_k(tke_levels),                                                        &
    x_cov_k(tke_levels)
 
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    ! vector elements of products (answers)
    y_tsq_k(tke_levels),                                                        &
    y_qsq_k(tke_levels),                                                        &
    y_cov_k(tke_levels)
 
-INTEGER :: k
+integer :: k
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_SIMEQ_MATRIX_PROD'
+character(len=*), parameter :: RoutineName='MYM_SIMEQ_MATRIX_PROD'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! y = A * x
 k = 1
@@ -84,7 +84,7 @@ y_cov_k(k) =     bb_cov_k(k) * x_cov_k(k)                                      &
                 + pp_ct_k(k) * x_tsq_k(k)                                      &
                 + pp_cq_k(k) * x_qsq_k(k)
 
-DO k = 2, tke_levels - 1
+do k = 2, tke_levels - 1
   y_tsq_k(k) = aa_tsq_k(k) * x_tsq_k(k - 1)                                    &
                 + bb_tsq_k(k) * x_tsq_k(k)                                     &
                 + cc_tsq_k(k) * x_tsq_k(k + 1)                                 &
@@ -101,7 +101,7 @@ DO k = 2, tke_levels - 1
                 + pp_ct_k(k) * x_tsq_k(k)                                      &
                 + pp_cq_k(k) * x_qsq_k(k)
 
-END DO
+end do
 
 k = tke_levels
 y_tsq_k(k) = aa_tsq_k(k) * x_tsq_k(k - 1)                                      &
@@ -118,8 +118,8 @@ y_cov_k(k) = aa_cov_k(k) * x_cov_k(k - 1)                                      &
                 + pp_cq_k(k) * x_qsq_k(k)
 
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_simeq_matrix_prod
-END MODULE mym_simeq_matrix_prod_mod
+end subroutine mym_simeq_matrix_prod
+end module mym_simeq_matrix_prod_mod

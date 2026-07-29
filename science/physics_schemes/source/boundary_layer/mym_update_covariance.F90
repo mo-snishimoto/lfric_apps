@@ -14,16 +14,16 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_update_covariance_mod
+module mym_update_covariance_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_UPDATE_COVARIANCE_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_UPDATE_COVARIANCE_MOD'
+contains
 
-SUBROUTINE mym_update_covariance(                                              &
+subroutine mym_update_covariance(                                              &
 ! IN levels
       bl_levels,                                                               &
 ! IN fields
@@ -33,22 +33,22 @@ SUBROUTINE mym_update_covariance(                                              &
 ! INOUT fields
       tsq, qsq, cov)
 
-USE atm_fields_bounds_mod, ONLY: tdims, tdims_s, pdims
-USE mym_const_mod, ONLY: b2, coef_trbvar_diff
-USE mym_option_mod, ONLY: l_my_extra_level, tke_levels
-USE timestep_mod, ONLY: timestep
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-USE mym_diff_matcoef_mod, ONLY: mym_diff_matcoef
-USE mym_solve_simeq_mod, ONLY: mym_solve_simeq
-IMPLICIT NONE
+use atm_fields_bounds_mod, only: tdims, tdims_s, pdims
+use mym_const_mod, only: b2, coef_trbvar_diff
+use mym_option_mod, only: l_my_extra_level, tke_levels
+use timestep_mod, only: timestep
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+use mym_diff_matcoef_mod, only: mym_diff_matcoef
+use mym_solve_simeq_mod, only: mym_solve_simeq
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                  ! Max. no. of "boundary" level
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
         bl_levels+1),                                                          &
                  ! Z_UV(*,K) is height of u level k
@@ -94,7 +94,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
            tke_levels)
                  ! a residual part in the production term of cov
 
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
    tsq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        bl_levels),                                                             &
                  ! Self covariance of liquid potential temperature
@@ -109,19 +109,19 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
                  ! (thetal'qw') defined on theta levels K-1
 
 ! Local Variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k, k_start
                 ! loop indexes, etc.
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    elem
                 ! work variables
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    disp_coef
                 ! coefficients of the prognostic variables in
                 ! dissipation terms
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    aa(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
    bb(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
    cc(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
@@ -160,27 +160,27 @@ REAL(KIND=real_umphys) ::                                                      &
          tke_levels)
                 ! matrix elements (see the documents for details)
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_UPDATE_COVARIANCE'
+character(len=*), parameter :: RoutineName='MYM_UPDATE_COVARIANCE'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-CALL mym_diff_matcoef(                                                         &
+call mym_diff_matcoef(                                                         &
       bl_levels,coef_trbvar_diff, z_uv, z_tq, dfm, aa, bb, cc)
 
-IF (l_my_extra_level) THEN
+if (l_my_extra_level) then
   k_start = 1
-ELSE
+else
   k_start = 2
-END IF
+end if
 
 ! set maxtrix elements
-DO k = k_start, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = k_start, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       disp_coef = 2.0 * qkw(i, j, k) / (b2 * el(i, j, k))
       elem = 1.0 - bb(i, j, k) * timestep                                      &
                              + timestep * disp_coef
@@ -211,12 +211,12 @@ DO k = k_start, tke_levels
       pp_qc(i, j, k) = - 2.0 * pdq_cov(i, j, k) * timestep
       pp_ct(i, j, k) = - 2.0 * pdc_tsq(i, j, k) * timestep
       pp_cq(i, j, k) = - 2.0 * pdc_qsq(i, j, k) * timestep
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO j = tdims%j_start, tdims%j_end
-  DO i = tdims%i_start, tdims%i_end
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
     aa_tsq(i, j, k_start) = 0.0
     aa_qsq(i, j, k_start) = 0.0
     aa_cov(i, j, k_start) = 0.0
@@ -224,12 +224,12 @@ DO j = tdims%j_start, tdims%j_end
     cc_tsq(i, j, tke_levels) = 0.0
     cc_qsq(i, j, tke_levels) = 0.0
     cc_cov(i, j, tke_levels) = 0.0
-  END DO
-END DO
+  end do
+end do
 
-IF (.NOT. l_my_extra_level) THEN
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+if (.not. l_my_extra_level) then
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       bb_tsq(i, j, 1) = 1.0
       bb_qsq(i, j, 1) = 1.0
       bb_cov(i, j, 1) = 1.0
@@ -249,12 +249,12 @@ IF (.NOT. l_my_extra_level) THEN
       pp_qc(i, j, 1) = 0.0
       pp_ct(i, j, 1) = 0.0
       pp_cq(i, j, 1) = 0.0
-    END DO
-  END DO
-END IF
+    end do
+  end do
+end if
 
 ! Solve the simultaneous equations for tsq, qsq and cov
-CALL mym_solve_simeq(                                                          &
+call mym_solve_simeq(                                                          &
 ! IN levels
         bl_levels,                                                             &
 ! IN fields
@@ -263,8 +263,8 @@ CALL mym_solve_simeq(                                                          &
 ! OUT fields
         tsq, qsq, cov)
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_update_covariance
-END MODULE mym_update_covariance_mod
+end subroutine mym_update_covariance
+end module mym_update_covariance_mod

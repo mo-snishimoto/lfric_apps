@@ -32,11 +32,11 @@
 !    http://www.nda.ac.jp/~naka/MYNN/index.html
 
 !---------------------------------------------------------------------
-MODULE mym_const_mod
-USE um_types, ONLY: real_umphys
+module mym_const_mod
+use um_types, only: r_bl
 
-IMPLICIT NONE
-SAVE
+implicit none
+save
 
  ! For the meaing of the variables, see the papers above.
  ! N2001: Nakanishi, M., 2001
@@ -45,7 +45,7 @@ SAVE
 
  ! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    g1,                                                                         &
                   ! gamma_1 = 1/3 - 2A_1 / B_1
    g2,                                                                         &
@@ -137,4 +137,4 @@ REAL(KIND=real_umphys) ::                                                      &
                   ! upper limit for qke (twice of TKE) for safety.
    e_trb_max
                   ! upper limit for e_trb for safety.
-END MODULE mym_const_mod
+end module mym_const_mod

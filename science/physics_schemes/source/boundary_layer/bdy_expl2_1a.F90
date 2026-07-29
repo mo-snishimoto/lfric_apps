@@ -15,17 +15,17 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE bdy_expl2_1a_mod
+module bdy_expl2_1a_mod
 
-USE UM_ParCore, ONLY: parcore_mype => mype
-USE um_types, ONLY: real_umphys
+use UM_ParCore, only: parcore_mype => mype
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'BDY_EXPL2_1A_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'BDY_EXPL2_1A_MOD'
+contains
 
-SUBROUTINE bdy_expl2_1a (                                                      &
+subroutine bdy_expl2_1a (                                                      &
 ! IN values defining vertical grid of model atmosphere :
  bl_levels,p_theta_levels,land_pts,land_index,                                 &
 ! IN U, V and W momentum fields.
@@ -60,46 +60,46 @@ SUBROUTINE bdy_expl2_1a (                                                      &
  zhsc,ntdsc,nbdsc,wstar,wthvs,uw0,vw0                                          &
      )
 
-USE atm_fields_bounds_mod, ONLY: pdims, tdims, tdims_l,                        &
+use atm_fields_bounds_mod, only: pdims, tdims, tdims_l,                        &
     pdims_s
-USE bl_option_mod, ONLY: t_drain, h_scale, sg_orog_mixing, local_fa,           &
+use bl_option_mod, only: t_drain, h_scale, sg_orog_mixing, local_fa,           &
       free_trop_layers, smooth_to_bdys, one_third, sg_shear,                   &
       sg_shear_enh_lambda
-USE bl_diags_mod, ONLY: strnewbldiag
-USE cv_run_mod, ONLY: l_param_conv
-USE gen_phys_inputs_mod, ONLY: l_mr_physics
-USE jules_surface_mod, ONLY: formdrag, explicit_stress
-USE mym_option_mod, ONLY:                                                      &
+use bl_diags_mod, only: strnewbldiag
+use cv_run_mod, only: l_param_conv
+use gen_phys_inputs_mod, only: l_mr_physics
+use jules_surface_mod, only: formdrag, explicit_stress
+use mym_option_mod, only:                                                      &
    bdy_tke, deardorff, mymodel25, mymodel3, tke_levels,                        &
    l_local_above_tkelvs, l_3dtke
-USE planet_constants_mod, ONLY: cp, g, vkman
-USE turb_diff_mod, ONLY:                                                       &
+use planet_constants_mod, only: cp, g, vkman
+use turb_diff_mod, only:                                                       &
     l_subfilter_vert, l_subfilter_horiz, mix_factor,                           &
     turb_startlev_vert, turb_endlev_vert
-USE water_constants_mod, ONLY: lc
+use water_constants_mod, only: lc
 
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
 
-USE ddf_ctl_mod, ONLY: ddf_ctl
-USE ex_coef_mod, ONLY: ex_coef
-USE mym_ctl_mod, ONLY: mym_ctl
-USE mym_ex_flux_tq_mod, ONLY: mym_ex_flux_tq
-USE fm_drag_mod, ONLY: fm_drag
+use ddf_ctl_mod, only: ddf_ctl
+use ex_coef_mod, only: ex_coef
+use mym_ctl_mod, only: mym_ctl
+use mym_ex_flux_tq_mod, only: mym_ex_flux_tq
+use fm_drag_mod, only: fm_drag
 
-IMPLICIT NONE
+implicit none
 
 !  Inputs :-
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
  land_pts,                                                                     &
                              ! No.of land points in whole grid.
  bl_levels
                              ! IN Max. no. of "boundary" levels
 
 !     Declaration of new BL diagnostics.
-TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
+type (strnewbldiag), intent(in out) :: BL_diag
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
  p_theta_levels(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,           &
                 0:bl_levels+1),                                                &
  rho_mix(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
@@ -150,7 +150,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                                  ! IN A grid-box mean buoyancy param
                                  ! on p,T,q-levels (full levels).
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
  flandg(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end),          &
                                  ! IN Land fraction on all tiles
  p_rho_levs(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,       &
@@ -162,7 +162,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
 
 ! (f) Atmospheric + any other data not covered so far, incl control.
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
  fb_surf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
                                   ! IN Surface flux buoyancy over
                                   ! density (m^2/s^3)
@@ -184,7 +184,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
  shear(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels)
                                  ! IN 3D Wind shear parameter
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
  u_0_px(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end),          &
                                  ! IN W'ly component of surface
 !                                       current (m/s). P grid
@@ -202,12 +202,12 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                                 ! IN Effective grid-box roughness
 !                                 length for momentum
 
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
  land_index(land_pts)        ! IN LAND_INDEX(I)=J => the Jth
 !                                     point in P_FIELD is the Ith
 !                                     land point.
 ! (e) Cloud data.
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
  qcf(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,              &
      tdims_l%k_start:bl_levels),                                               &
                                    ! IN Cloud ice (kg per kg air)
@@ -225,7 +225,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                                  ! IN Ice/liquid water temperature
 
 ! INOUT variables
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
  zh(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                      &
                                  ! INOUT Height above surface of top
                                  !       of boundary layer (metres).
@@ -242,12 +242,12 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
    rhokh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
                                    ! INOUT Exchange coeffs for moisture.
 
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
  rhokm(pdims_s%i_start:pdims_s%i_end,                                          &
        pdims_s%j_start:pdims_s%j_end ,bl_levels)
                               ! Exchange coefficients for momentum on P-grid
 ! INOUT but not used: variables used in the 1A version (TKE-based schemes)
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
   e_trb(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
       bl_levels),                                                              &
   tsq_trb(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
@@ -258,14 +258,14 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
       bl_levels),                                                              &
   zhpar_shcu(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
 
-LOGICAL, INTENT(IN OUT) ::                                                     &
+logical, intent(in out) ::                                                     &
  cumulus(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
                                  ! INOUT Logical switch for trade Cu
  l_shallow(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
                                  ! INOUT Flag to indicate shallow
                                  !     convection
 
-INTEGER, INTENT(IN OUT) ::                                                     &
+integer, intent(in out) ::                                                     &
  ntml(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                    &
                                ! INOUT Number of model layers in the
                                !    turbulently mixed layer
@@ -275,7 +275,7 @@ INTEGER, INTENT(IN OUT) ::                                                     &
 
 !  Outputs :-
 !  (a) Calculated anyway (use STASH space from higher level) :-
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
  visc_m(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels),&
                               ! Diffusion coefficient for momentum
  visc_h(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels),&
@@ -321,7 +321,7 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
                                  !     Shear-dominated unstable b.l.
                                  !     diagnosed, 0.0 otherwise.
 
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
   wstar(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                  &
                                  ! OUT Convective velocity scale (m/s)
   wthvs(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                  &
@@ -352,7 +352,7 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
   zhsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
                                   ! OUT Top of decoupled layer
 
-INTEGER, INTENT(OUT) ::                                                        &
+integer, intent(out) ::                                                        &
  ntdsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
                                  ! OUT Top level for turb mixing in
 !                                           any decoupled Sc layer
@@ -365,7 +365,7 @@ INTEGER, INTENT(OUT) ::                                                        &
                                   ! OUT grid-level of DSC inversion
 
 !-2 Genuinely output, needed by other atmospheric routines :-
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
   uw0(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                    &
                            ! OUT U-component of surface wind stress
                            !     on P-grid
@@ -383,10 +383,10 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
 ! factors for all the interfaces treated by the boundary layer scheme;
 ! this would be desirable theoretically but expensive computationally
 ! because of the use of the log function.
-INTEGER, PARAMETER ::    k_log_layr = 2
+integer, parameter ::    k_log_layr = 2
 !-----------------------------------------------------------------------
 !  Workspace :-
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
  dbdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                     &
       2:bl_levels),                                                            &
                               ! Buoyancy gradient across layer
@@ -438,10 +438,10 @@ REAL(KIND=real_umphys) ::                                                      &
  rneutml_sq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
                               ! Square of the neutral mixing length scale
 
-REAL(KIND=real_umphys), ALLOCATABLE :: visc_h_rho (:,:,:)
+real(kind=r_bl), allocatable :: visc_h_rho (:,:,:)
                                                        ! visc_h on rho levels
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    zh_local(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
                               ! Height above surface of top of
                               !  boundary layer (metres) as
@@ -477,7 +477,7 @@ REAL(KIND=real_umphys) ::                                                      &
                   ! Gradient of v at theta levels.
                   !(:,:,K) repserents the value on theta level K-1
 
-INTEGER ::                                                                     &
+integer ::                                                                     &
  ntml_local(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
                                ! Number of model layers in the
 !                                    turbulently mixed layer as
@@ -488,7 +488,7 @@ INTEGER ::                                                                     &
 !                                    turbulently mixed layer as
 !                                    determined from the parcel ascent.
 
-LOGICAL ::                                                                     &
+logical ::                                                                     &
  unstable(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                &
                                ! Logical switch for unstable
                                !    surface layer.
@@ -496,7 +496,7 @@ LOGICAL ::                                                                     &
                                ! Flag set if decoupled
                                ! stratocumulus layer found
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    rhogamt(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                &
            2:bl_levels),                                                       &
                   ! Counter gradient terms for TL
@@ -506,12 +506,12 @@ REAL(KIND=real_umphys) ::                                                      &
                   ! Counter gradient terms for QW
                   ! defined at rho levels
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
  lambda_min
             ! Min value of length scale LAMBDA.
 
 !  Local scalars :-
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    weight1,                                                                    &
    weight2,                                                                    &
    weight3,                                                                    &
@@ -522,7 +522,7 @@ REAL(KIND=real_umphys) ::                                                      &
              ! subgrid orographic slope
    grcp      ! G/CP
 
-INTEGER  ::                                                                    &
+integer  ::                                                                    &
    i,j,                                                                        &
                      ! LOCAL Loop counter (horizontal field index).
    k,ient,                                                                     &
@@ -530,37 +530,37 @@ INTEGER  ::                                                                    &
    l
 ! LOCAL Loop counter for land points
 
-CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'BDY_EXPL2_1A'
+character(len=*), parameter ::  RoutineName = 'BDY_EXPL2_1A'
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Parameter check
 ! error checking here moved to readsize/scm_shell
 
 ! set pressure array.
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
     p_half(i,j,1) = pstar(i,j)
-  END DO
-END DO
-DO k = 2, bl_levels
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+  end do
+end do
+do k = 2, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       p_half(i,j,k) = p_rho_levs(i,j,k)
-    END DO
-  END DO
-END DO  ! end of loop over bl_levels
+    end do
+  end do
+end do  ! end of loop over bl_levels
 
 !-----------------------------------------------------------------------
-IF (formdrag ==  explicit_stress) THEN
+if (formdrag ==  explicit_stress) then
   !------------------------------------------------------------------
   !      Calculate stress profiles
   !------------------------------------------------------------------
-  CALL fm_drag (                                                               &
+  call fm_drag (                                                               &
   ! IN levels
         land_pts, land_index, bl_levels,                                       &
   ! IN fields
@@ -575,59 +575,59 @@ IF (formdrag ==  explicit_stress) THEN
   !------------------------------------------------------------------
   !      Orographic stress diagnostics
   !------------------------------------------------------------------
-  IF (BL_diag%l_ostressx) THEN
-    DO k = 1, bl_levels
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+  if (BL_diag%l_ostressx) then
+    do k = 1, bl_levels
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
           BL_diag%ostressx(i,j,k)=tau_fd_x(i,j,k)
-        END DO
-      END DO
-    END DO
-  END IF
-  IF (BL_diag%l_ostressy) THEN
-    DO k = 1, bl_levels
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+        end do
+      end do
+    end do
+  end if
+  if (BL_diag%l_ostressy) then
+    do k = 1, bl_levels
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
           BL_diag%ostressy(i,j,k)=tau_fd_y(i,j,k)
-        END DO
-      END DO
-    END DO
-  END IF
+        end do
+      end do
+    end do
+  end if
 
-END IF
+end if
 
 !------------------------------------------------------------------
 !  Initialize weighting applied to 1d BL scheme
 !  (used to blend 1D with 3D Smagorinsky scheme)
 !------------------------------------------------------------------
-DO k = 1, bl_levels
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+do k = 1, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       weight_1dbl(i,j,k) = 1.0
       weight_1dbl_rho(i,j,k) = 1.0     ! dummy here
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 !------------------------------------------------------------------
 !  Initialize fluxes
 !------------------------------------------------------------------
-DO k = 2, bl_levels
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+do k = 2, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       ftl(i,j,k) = 0.0
       fqw(i,j,k) = 0.0
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 !-------------------------------------------------------------
 ! Set all variables from the non-local scheme to zero or "off"
 !  - reset all fluxes and K's arising from the non-local scheme
 !-------------------------------------------------------------
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
     ntml_nl(i,j) = ntml(i,j)
         ! decoupled mixed layer
-    dsc(i,j)     = .FALSE.
+    dsc(i,j)     = .false.
     ntdsc(i,j)   = 0
     nbdsc(i,j)   = 0
     zhsc(i,j)    = 0.0
@@ -636,50 +636,50 @@ DO j = pdims%j_start, pdims%j_end
         ! entrainment variables for non-local tracer mixing
     kent(i,j) = 2
     kent_dsc(i,j) = 2
-    DO ient = 1, 3
+    do ient = 1, 3
       t_frac(i,j,ient) = 0.0
       zrzi(i,j,ient)   = 0.0
       we_lim(i,j,ient) = 0.0
       t_frac_dsc(i,j,ient) = 0.0
       zrzi_dsc(i,j,ient)   = 0.0
       we_lim_dsc(i,j,ient) = 0.0
-    END DO
+    end do
     unstable(i,j) = (fb_surf(i,j) >  0.0)
-  END DO
-END DO
+  end do
+end do
 
 ! for compatibility to the original bdy_expl2
-IF (l_subfilter_vert) THEN
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
-      cumulus(i,j) = .FALSE.
-      l_shallow(i,j) = .FALSE.
+if (l_subfilter_vert) then
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
+      cumulus(i,j) = .false.
+      l_shallow(i,j) = .false.
       ntpar(i,j)   = 0
       ntml_nl(i,j) = -1    ! to ensure correct diagnostics
-    END DO
-  END DO
-END IF
+    end do
+  end do
+end if
 !-----------------------------------------------------------------------
 ! Calculate lapse rates
 !-----------------------------------------------------------------------
 grcp = g/cp
-DO k = 2, bl_levels
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+do k = 2, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       dtldz(i,j,k) = ( tl(i,j,k) - tl(i,j,k-1) )                               &
                                     * rdz_charney_grid(i,j,k) + grcp
       dqwdz(i,j,k) = ( qw(i,j,k) - qw(i,j,k-1) )                               &
                                     * rdz_charney_grid(i,j,k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 
 ! Calculate `buoyancy' gradient, DBDZ, on theta-levels
 ! NOTE: DBDZ(K) is on theta-level K-1
-DO k = 3, bl_levels
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+do k = 3, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       r_weight1 = 1.0 / (z_uv(i,j,k) - z_uv(i,j,k-1))
       weight2 = z_tq(i,j,k-1)- z_uv(i,j,k-1)
       weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
@@ -689,131 +689,131 @@ DO k = 3, bl_levels
                            + weight3 * dqwdz(i,j,k-1)) * r_weight1
       dbdz(i,j,k) = g*( bt_gb(i,j,k-1)*dtldzm(i, j, k) +                       &
                                   bq_gb(i,j,k-1)*dqwdzm(i, j, k))
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
 k = 2
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
     dtldzm(i,j,k) = dtldz(i,j,k)
     dqwdzm(i,j,k) = dqwdz(i,j,k)
     dbdz(i,j,k) = g*( bt_gb(i,j,k-1)*dtldz(i,j,k) +                            &
                               bq_gb(i,j,k-1)*dqwdz(i,j,k) )
-  END DO
-END DO
+  end do
+end do
 
 !--------------------------------------------------
 ! Calculate modulus of shear on theta-levels
 ! dvdzm(k) is on theta-level(k-1)
 !--------------------------------------------------
-DO k = 2, bl_levels
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+do k = 2, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       ! Calculation of dudz, dvdz is temporary until use of shear terms
       ! is sorted.
       dudz(i, j, k) = (u_p(i,j,k) - u_p(i,j,k-1)) * rdz(i, j, k)
       dvdz(i, j, k) = (v_p(i,j,k) - v_p(i,j,k-1)) * rdz(i, j, k)
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-IF ((.NOT. l_subfilter_vert) .AND. (.NOT. l_3dtke) ) THEN
+if ((.not. l_subfilter_vert) .and. (.not. l_3dtke) ) then
 
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
-        dvdzm(i, j, k) = MAX ( 1.0e-12 ,                                       &
-                     SQRT(dudz(i, j, k) ** 2 + dvdz(i, j, k) ** 2))
-      END DO
-    END DO
-  END DO
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
+        dvdzm(i, j, k) = max ( 1.0e-12 ,                                       &
+                     sqrt(dudz(i, j, k) ** 2 + dvdz(i, j, k) ** 2))
+      end do
+    end do
+  end do
 
-ELSE
+else
 
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
-        dvdzm(i,j,k) = MAX( 1.0e-12 , shear(i,j,k-1) )
-      END DO
-    END DO
-  END DO
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
+        dvdzm(i,j,k) = max( 1.0e-12 , shear(i,j,k-1) )
+      end do
+    end do
+  end do
 
-END IF
+end if
 
-IF (l_subfilter_horiz .OR. l_subfilter_vert .OR. l_3dtke) THEN
+if (l_subfilter_horiz .or. l_subfilter_vert .or. l_3dtke) then
 
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
       rmlmax2(i,j) = ( mix_factor * delta_smag(i,j) )**2
-    END DO
-  END DO
+    end do
+  end do
 
-  DO k = 1, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+  do k = 1, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         rneutml_sq(i,j,k) = 1.0 / (                                            &
                  1.0/( vkman*(z_tq(i,j,k) + z0m_eff_gb(i,j)) )**2              &
                + 1.0/rmlmax2(i,j) )
-      END DO
-    END DO
-  END DO
+      end do
+    end do
+  end do
 
-END IF
+end if
 !-----------------------------------------------------------------------
 ! Orographic enhancement of subgrid mixing
 !-----------------------------------------------------------------------
 ! Calculate 2D array for standard deviation of subgrid orography.
 !-----------------------------------------------------------------------
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
     sigma_h(i,j) = 0.0
-  END DO
-END DO
-DO l = 1, land_pts
+  end do
+end do
+do l = 1, land_pts
   j=(land_index(l)-1)/pdims%i_end + 1
   i=land_index(l) - (j-1)*pdims%i_end
-  sigma_h(i,j) =  MIN( sd_orog(l), 300.0 )
-END DO
+  sigma_h(i,j) =  min( sd_orog(l), 300.0 )
+end do
 !-----------------------------------------------------------------------
 !  Enhance resolved shear through unresolved subgrid drainage flows.
 !-----------------------------------------------------------------------
-IF (sg_orog_mixing == sg_shear .OR.                                            &
-    sg_orog_mixing == sg_shear_enh_lambda) THEN
+if (sg_orog_mixing == sg_shear .or.                                            &
+    sg_orog_mixing == sg_shear_enh_lambda) then
 
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
 
-        IF (sigma_h(i,j) > 1.0 ) THEN
+        if (sigma_h(i,j) > 1.0 ) then
           zpr = z_tq(i,j,k-1)/sigma_h(i,j)
           ! Height dependence, to reduce effect to zero with height
           !   gives z_scale~[1,0.95,0.5,0] at zpr=[0,0.6,1,1.7]
-          weight1 = 0.5*( 1.0 - TANH(4.0*(zpr-1.0) ) )
+          weight1 = 0.5*( 1.0 - tanh(4.0*(zpr-1.0) ) )
 
           ! Take slope ~ sd/h_scale for small sd;
           !            tends to 0.2 for large sd
-          slope = 1.0 / SQRT( 25.0 + (h_scale/sigma_h(i,j))**2 )
+          slope = 1.0 / sqrt( 25.0 + (h_scale/sigma_h(i,j))**2 )
 
-          dvdzm(i,j,k) = MAX ( dvdzm(i,j,k),                                   &
+          dvdzm(i,j,k) = max ( dvdzm(i,j,k),                                   &
                                weight1*slope*t_drain*dbdz(i,j,k) )
 
-          IF (k==2 .AND. BL_diag%l_dvdzm)                                      &
+          if (k==2 .and. BL_diag%l_dvdzm)                                      &
             BL_diag%dvdzm(i,j,1)=weight1*slope*t_drain*dbdz(i,j,k)
 
-        END IF
-      END DO
-    END DO
-  END DO
+        end if
+      end do
+    end do
+  end do
 
-END IF      ! sg_orog_mixing
+end if      ! sg_orog_mixing
 
 
 !------------------------------------------------------------------
 !  call main subroutines
 !------------------------------------------------------------------
-IF (bdy_tke == mymodel25 .OR. bdy_tke == mymodel3) THEN
-  CALL mym_ctl(                                                                &
+if (bdy_tke == mymodel25 .or. bdy_tke == mymodel3) then
+  call mym_ctl(                                                                &
   !in levels/switches
             bl_levels, bdy_tke,                                                &
             BL_diag,                                                           &
@@ -826,8 +826,8 @@ IF (bdy_tke == mymodel25 .OR. bdy_tke == mymodel3) THEN
             e_trb, tsq_trb, qsq_trb, cov_trb, rhokm, rhokh, zhpar_shcu,        &
   ! out
             visc_m, visc_h, rhogamu, rhogamv, rhogamt, rhogamq)
-ELSE IF (bdy_tke == deardorff) THEN
-  CALL ddf_ctl(                                                                &
+else if (bdy_tke == deardorff) then
+  call ddf_ctl(                                                                &
   ! IN levels/switches
           bl_levels, BL_diag,                                                  &
   ! IN fields
@@ -837,73 +837,73 @@ ELSE IF (bdy_tke == deardorff) THEN
           u_s, fb_surf, pstar,                                                 &
   ! INOUT fields
           e_trb, rhokm, rhokh, zhpar_shcu)
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         rhogamu(i, j, k) = 0.0
         rhogamv(i, j, k) = 0.0
         rhogamt(i, j, k) = 0.0
         rhogamq(i, j, k) = 0.0
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
 ! RHOKM and RHOKH could be changed by the subgrid turbulence
 ! scheme, but BL_diag%rhokm, rhokh are the exchange coefficients
 ! by the TKE schemes, which is the same sense in bdy_expl2 for
 ! the UM BL scheme.
 
-IF (BL_diag%l_rhokm) THEN
-  DO k = 1, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+if (BL_diag%l_rhokm) then
+  do k = 1, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         BL_diag%rhokm(i,j,k)=rhokm(i,j,k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_rhokh) THEN
-  DO k = 1, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+if (BL_diag%l_rhokh) then
+  do k = 1, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         BL_diag%rhokh(i,j,k)=rhokh(i,j,k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
 !-----------------------------------------------------------------------
 ! The purpose of this block is to calculate local mixing above tke_levels
 ! and the stability functions FM_3D and FM_3H with EX_COEF.
 !-----------------------------------------------------------------------
-IF (l_subfilter_horiz .OR. l_subfilter_vert .OR.                               &
-        (tke_levels < bl_levels .AND. l_local_above_tkelvs)) THEN
+if (l_subfilter_horiz .or. l_subfilter_vert .or.                               &
+        (tke_levels < bl_levels .and. l_local_above_tkelvs)) then
 
   ! call local coeff calculation for levels 2 to bl_levels
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         ri(i, j, k) = dbdz(i, j, k)                                            &
                       / ( dvdzm(i, j, k) * dvdzm(i ,j, k) )
-      END DO
-    END DO
-  END DO
+      end do
+    end do
+  end do
 
-  IF (BL_diag%l_gradrich) THEN
-    DO k = 2, bl_levels
-      DO j = pdims%j_start, pdims%j_end
-        DO i = pdims%i_start, pdims%i_end
+  if (BL_diag%l_gradrich) then
+    do k = 2, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
           BL_diag%gradrich(i,j,k)=ri(i,j,k)
-        END DO
-      END DO
-    END DO
-  END IF
+        end do
+      end do
+    end do
+  end if
   !-----------------------------------------------------------------------
   ! call local coeff calculation for levels 2 to bl_levels
   !-----------------------------------------------------------------------
-  CALL ex_coef (                                                               &
+  call ex_coef (                                                               &
   ! IN levels/logicals
        bl_levels,k_log_layr,BL_diag,                                           &
   ! IN fields
@@ -920,145 +920,145 @@ IF (l_subfilter_horiz .OR. l_subfilter_vert .OR.                               &
   !  set diffusion coefs between tke_levels + 1 and bl_levels
   !  with ones by the local scheme (EX_COEF)
   !------------------------------------------------------------------
-  IF (tke_levels < bl_levels .AND. l_local_above_tkelvs) THEN
-    DO k = tke_levels + 1, bl_levels
-      DO j = pdims%j_start, pdims%j_end
-        DO i = pdims%i_start, pdims%i_end
+  if (tke_levels < bl_levels .and. l_local_above_tkelvs) then
+    do k = tke_levels + 1, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
           rhokm(i, j, k) = rhokm_ri(i, j, k)
 
           weight1 = z_tq(i,j,k) - z_tq(i,j, k-1)
           weight2 = z_tq(i,j,k) - z_uv(i,j,k)
           weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
-          IF ( k  ==  bl_levels ) THEN
+          if ( k  ==  bl_levels ) then
               ! assume RHOKH_uv(BL_LEVELS+1) is zero
             rhokh(i,j,k) = ( weight2/weight1 ) * rhokh_th_ri(i,j,k)
-          ELSE
+          else
             rhokh(i,j,k) =    weight3/weight1 *                                &
                                       rhokh_th_ri(i,j,k+1)                     &
                              +weight2/weight1 *                                &
                                       rhokh_th_ri(i,j,k)
-          END IF
+          end if
 
-          IF ((local_fa /= free_trop_layers) .and. &
-              (local_fa /= smooth_to_bdys)) THEN
+          if ((local_fa /= free_trop_layers) .and. &
+              (local_fa /= smooth_to_bdys)) then
             !--------------------------------------------------------
             !  Code moved from EX_COEF to avoid interpolation:
             !  Include mixing length, ELH, in RHOKH.
             !  Here only use free trop mixing length, lambda_min
             !--------------------------------------------------------
             rhokh(i,j,k) = lambda_min * rhokh(i,j,k)
-          END IF   ! test on local_fa NE free_trop_layers
+          end if   ! test on local_fa NE free_trop_layers
 
           ! Finally multiply RHOKH by dry density
-          IF (l_mr_physics) rhokh(i,j,k) = rho_mix(i,j,k) * rhokh(i,j,k)
+          if (l_mr_physics) rhokh(i,j,k) = rho_mix(i,j,k) * rhokh(i,j,k)
 
-        END DO
-      END DO
-    END DO
-  END IF
+        end do
+      end do
+    end do
+  end if
 
-  IF (l_subfilter_horiz .OR. l_subfilter_vert) THEN
+  if (l_subfilter_horiz .or. l_subfilter_vert) then
 
     ! visc_m and visc_h for levels below tke_levels are set in mym_ctl.
 
-    IF (l_3dtke .AND.                                                          &
-        (tke_levels < bl_levels .AND. l_local_above_tkelvs)) THEN
+    if (l_3dtke .and.                                                          &
+        (tke_levels < bl_levels .and. l_local_above_tkelvs)) then
 
-      DO k = tke_levels, bl_levels
-        DO j = pdims%j_start, pdims%j_end
-          DO i = pdims%i_start, pdims%i_end
+      do k = tke_levels, bl_levels
+        do j = pdims%j_start, pdims%j_end
+          do i = pdims%i_start, pdims%i_end
             visc_m(i,j,k) = shear(i,j,k)*rneutml_sq(i,j,k)
             visc_h(i,j,k) = shear(i,j,k)*rneutml_sq(i,j,k)
-          END DO
-        END DO
-      END DO
+          end do
+        end do
+      end do
 
-      DO k = tke_levels, bl_levels-1
-        DO j = pdims%j_start, pdims%j_end
-          DO i = pdims%i_start, pdims%i_end
+      do k = tke_levels, bl_levels-1
+        do j = pdims%j_start, pdims%j_end
+          do i = pdims%i_start, pdims%i_end
             ! stability functions are indexed with Ri, fm(k) on w(k-1)
             visc_m(i,j,k) = visc_m(i,j,k)*fm_3d(i,j,k+1)
             visc_h(i,j,k) = visc_h(i,j,k)*fh_3d(i,j,k+1)
-          END DO
-        END DO
-      END DO
+          end do
+        end do
+      end do
 
-    ELSE IF (.NOT. l_3dtke) THEN
+    else if (.not. l_3dtke) then
 
       ! visc_m,h on IN are just S and visc_m,h(k) are co-located with w(k)
-      DO k = 1, bl_levels
-        DO j = pdims%j_start, pdims%j_end
-          DO i = pdims%i_start, pdims%i_end
+      do k = 1, bl_levels
+        do j = pdims%j_start, pdims%j_end
+          do i = pdims%i_start, pdims%i_end
             visc_m(i,j,k) = shear(i,j,k)*rneutml_sq(i,j,k)
             visc_h(i,j,k) = shear(i,j,k)*rneutml_sq(i,j,k)
-          END DO
-        END DO
-      END DO
+          end do
+        end do
+      end do
 
-      DO k = 1, bl_levels-1
-        DO j = pdims%j_start, pdims%j_end
-          DO i = pdims%i_start, pdims%i_end
+      do k = 1, bl_levels-1
+        do j = pdims%j_start, pdims%j_end
+          do i = pdims%i_start, pdims%i_end
             ! stability functions are indexed with Ri, fm(k) on w(k-1)
             visc_m(i,j,k) = visc_m(i,j,k)*fm_3d(i,j,k+1)
             visc_h(i,j,k) = visc_h(i,j,k)*fh_3d(i,j,k+1)
-          END DO
-        END DO
-      END DO
+          end do
+        end do
+      end do
 
-    END IF
+    end if
     ! visc_m and visc _h are now lambda^2*S*FM and lambda^2*S*FH
 
-    IF (l_subfilter_vert) THEN
+    if (l_subfilter_vert) then
 
       ! visc_h_rho(k) is held on rho(k), same as BL's rhokh
-      ALLOCATE (visc_h_rho(pdims%i_start:pdims%i_end,                          &
+      allocate (visc_h_rho(pdims%i_start:pdims%i_end,                          &
                            pdims%j_start:pdims%j_end, bl_levels))
 
-      DO k = 2, bl_levels
-        DO j = pdims%j_start, pdims%j_end
-          DO i = pdims%i_start, pdims%i_end
+      do k = 2, bl_levels
+        do j = pdims%j_start, pdims%j_end
+          do i = pdims%i_start, pdims%i_end
             weight1 = z_tq(i,j,k) - z_tq(i,j, k-1)
             weight2 = z_tq(i,j,k) - z_uv(i,j,k)
             weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
-            IF ( k  ==  bl_levels ) THEN
+            if ( k  ==  bl_levels ) then
               ! assume visc_h(bl_levels) is zero
               ! (Ri and thence f_h not defined)
               visc_h_rho(i,j,k) = (weight2/weight1) * visc_h(i,j,k-1)
-            ELSE
+            else
               visc_h_rho(i,j,k) = (weight3/weight1) * visc_h(i,j,k)            &
                                 + (weight2/weight1) * visc_h(i,j,k-1)
-            END IF
-          END DO
-        END DO
-      END DO
+            end if
+          end do
+        end do
+      end do
 
       ! Overwrite the diffusion coefficients from the local BL scheme
       !(RHOKM and RHOKH) with those obtained from the Smagorinsky scheme.
 
-      DO k = 2, bl_levels
-        IF (k >= turb_startlev_vert .AND.                                      &
-                   k <= turb_endlev_vert) THEN
-          DO j = pdims%j_start, pdims%j_end
-            DO i = pdims%i_start, pdims%i_end
+      do k = 2, bl_levels
+        if (k >= turb_startlev_vert .and.                                      &
+                   k <= turb_endlev_vert) then
+          do j = pdims%j_start, pdims%j_end
+            do i = pdims%i_start, pdims%i_end
               rhokm(i,j,k) = visc_m(i,j,k-1)*rho_wet_tq(i,j,k-1)
               rhokh(i,j,k) = visc_h_rho(i,j,k)*rho_mix(i,j,k)
-            END DO
-          END DO
-        ELSE
-          DO j = pdims%j_start, pdims%j_end
-            DO i = pdims%i_start, pdims%i_end
+            end do
+          end do
+        else
+          do j = pdims%j_start, pdims%j_end
+            do i = pdims%i_start, pdims%i_end
               rhokm(i,j,k) = 0.0
               rhokh(i,j,k) = 0.0
-            END DO
-          END DO
-        END IF
-      END DO
+            end do
+          end do
+        end if
+      end do
 
-      DEALLOCATE (visc_h_rho)
+      deallocate (visc_h_rho)
 
-    END IF ! L_subfilter_vert
-  END IF ! L_subfilter_horiz or L_subfilter_vert
-END IF ! Main if-test for calling Ri-based scheme
+    end if ! L_subfilter_vert
+  end if ! L_subfilter_horiz or L_subfilter_vert
+end if ! Main if-test for calling Ri-based scheme
 
 !-----------------------------------------------------------------------
 ! Diagnose boundary layer type.
@@ -1076,15 +1076,15 @@ END IF ! Main if-test for calling Ri-based scheme
 !-----------------------------------------------------------------------
 !      First initialise the type variables and set the diagnostic ZHT.
 
-IF (BL_diag%l_zht) THEN
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
-      bl_diag%zht(i,j) = MAX( zh(i,j) , zhsc(i,j) )
-    END DO
-  END DO
-END IF
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
+if (BL_diag%l_zht) then
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
+      bl_diag%zht(i,j) = max( zh(i,j) , zhsc(i,j) )
+    end do
+  end do
+end if
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
     bl_type_1(i,j) = 0.0
     bl_type_2(i,j) = 0.0
     bl_type_3(i,j) = 0.0
@@ -1092,186 +1092,186 @@ DO j = pdims%j_start, pdims%j_end
     bl_type_5(i,j) = 0.0
     bl_type_6(i,j) = 0.0
     bl_type_7(i,j) = 0.0
-  END DO
-END DO
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
-    IF (.NOT. unstable(i,j) .AND. .NOT. dsc(i,j) .AND.                         &
-               .NOT. cumulus(i,j)) THEN
+  end do
+end do
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
+    if (.not. unstable(i,j) .and. .not. dsc(i,j) .and.                         &
+               .not. cumulus(i,j)) then
       !         Stable b.l.
       bl_type_1(i,j) = 1.0
-    ELSE IF (.NOT. unstable(i,j) .AND. dsc(i,j) .AND.                          &
-                .NOT. cumulus(i,j)) THEN
+    else if (.not. unstable(i,j) .and. dsc(i,j) .and.                          &
+                .not. cumulus(i,j)) then
       !         Stratocumulus over a stable surface layer
       bl_type_2(i,j) = 1.0
-    ELSE IF (unstable(i,j) .AND. .NOT. cumulus(i,j) .AND.                      &
-                .NOT. dsc(i,j) ) THEN
+    else if (unstable(i,j) .and. .not. cumulus(i,j) .and.                      &
+                .not. dsc(i,j) ) then
       !         Well mixed b.l. (possibly with stratocumulus)
-      IF ( ntml(i,j)  >   ntml_nl(i,j) ) THEN
+      if ( ntml(i,j)  >   ntml_nl(i,j) ) then
           ! shear-dominated - currently identified
           ! by local NTML overriding non-local
         bl_type_7(i,j) = 1.0
-      ELSE
+      else
           ! buoyancy-dominated
         bl_type_3(i,j) = 1.0
-      END IF
-    ELSE IF (unstable(i,j) .AND. dsc(i,j) .AND.                                &
-                                            .NOT. cumulus(i,j)) THEN
+      end if
+    else if (unstable(i,j) .and. dsc(i,j) .and.                                &
+                                            .not. cumulus(i,j)) then
       !         Decoupled stratocumulus (not over cumulus)
       bl_type_4(i,j) = 1.0
-    ELSE IF (dsc(i,j) .AND. cumulus(i,j)) THEN
+    else if (dsc(i,j) .and. cumulus(i,j)) then
       !         Decoupled stratocumulus over cumulus
       bl_type_5(i,j) = 1.0
-    ELSE IF (.NOT. dsc(i,j) .AND. cumulus(i,j)) THEN
+    else if (.not. dsc(i,j) .and. cumulus(i,j)) then
       !         Cumulus capped b.l.
       bl_type_6(i,j) = 1.0
-    END IF
-  END DO
-END DO
+    end if
+  end do
+end do
 !-----------------------------------------------------------------------
 ! Calculation of explicit fluxes of T,Q
 !-----------------------------------------------------------------------
-CALL mym_ex_flux_tq(                                                           &
+call mym_ex_flux_tq(                                                           &
       bl_levels,                                                               &
       tl, qw, rhokh, rhogamt, rhogamq, rdz_charney_grid,                       &
       ftl, fqw)
 
 
-IF (BL_diag%l_rhogamu) THEN
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+if (BL_diag%l_rhogamu) then
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         BL_diag%rhogamu(i, j, k) = rhogamu(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_rhogamv) THEN
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+if (BL_diag%l_rhogamv) then
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         BL_diag%rhogamv(i, j, k) = rhogamv(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_rhogamt) THEN
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+if (BL_diag%l_rhogamt) then
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         BL_diag%rhogamt(i, j, k) = - cp * rhogamt(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
-IF (BL_diag%l_rhogamq) THEN
-  DO k = 2, bl_levels
-    DO j = pdims%j_start, pdims%j_end
-      DO i = pdims%i_start, pdims%i_end
+if (BL_diag%l_rhogamq) then
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
         BL_diag%rhogamq(i, j, k) = - lc * rhogamq(i, j, k)
-      END DO
-    END DO
-  END DO
-END IF
+      end do
+    end do
+  end do
+end if
 
 !-----------------------------------------------------------------------
 ! Calculate explicit surface fluxes of U and V on
 ! P-grid for convection scheme
 !-----------------------------------------------------------------------
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
     uw0(i,j) = -rhokm(i,j,1) *                                                 &
                              ( u_p(i,j,1) - u_0_px(i,j) )
     vw0(i,j) = -rhokm(i,j,1) *                                                 &
                              ( v_p(i,j,1) - v_0_px(i,j) )
-  END DO
-END DO
+  end do
+end do
 !-----------------------------------------------------------------------
 ! Set NTML to max number of turbulently mixed layers
 ! Calculate quantities to pass to convection scheme.
 !-----------------------------------------------------------------------
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
     wstar(i,j) = 0.0
     wthvs(i,j) = 0.0
     cu_over_orog(i,j) = 0.0
-    IF ( cumulus(i,j) ) THEN
-      IF ( fb_surf(i,j)  >   0.0 ) THEN
+    if ( cumulus(i,j) ) then
+      if ( fb_surf(i,j)  >   0.0 ) then
         wstar(i,j) = ( zh(i,j)*fb_surf(i,j) )**one_third
         wthvs(i,j) = fb_surf(i,j) / ( g * bt(i,j,1) )
-      END IF
-      wstar(i,j) = MAX( 0.1, wstar(i,j) )
-      IF (.NOT. l_param_conv) THEN
-        ntml(i,j) = MAX( 2, ntml_nl(i,j) - 1 )
-      END IF
-    ELSE
-      ntml(i,j) = MAX( ntml_nl(i,j) , ntdsc(i,j) )
-    END IF
+      end if
+      wstar(i,j) = max( 0.1, wstar(i,j) )
+      if (.not. l_param_conv) then
+        ntml(i,j) = max( 2, ntml_nl(i,j) - 1 )
+      end if
+    else
+      ntml(i,j) = max( ntml_nl(i,j) , ntdsc(i,j) )
+    end if
     ! Limit explicitly calculated surface stresses
     ! to a physically plausible level.
-    IF ( uw0(i,j)  >=  5.0 ) THEN
+    if ( uw0(i,j)  >=  5.0 ) then
       uw0(i,j) =  5.0
-    ELSE IF ( uw0(i,j)  <=  -5.0 ) THEN
+    else if ( uw0(i,j)  <=  -5.0 ) then
       uw0(i,j) = -5.0
-    END IF
-    IF ( vw0(i,j)  >=  5.0 ) THEN
+    end if
+    if ( vw0(i,j)  >=  5.0 ) then
       vw0(i,j) =  5.0
-    ELSE IF ( vw0(i,j)  <=  -5.0 ) THEN
+    else if ( vw0(i,j)  <=  -5.0 ) then
       vw0(i,j) = -5.0
-    END IF
-    IF (BL_diag%l_wstar .AND. (fb_surf(i,j) >0.0)) THEN
+    end if
+    if (BL_diag%l_wstar .and. (fb_surf(i,j) >0.0)) then
       BL_diag%wstar(i,j)= (zh(i,j)*fb_surf(i,j))**one_third
-    END IF
-  END DO
-END DO
+    end if
+  end do
+end do
 
-IF (l_param_conv) THEN
+if (l_param_conv) then
 
   ! Check for CUMULUS having been diagnosed over steep orography.
   ! Reset to false but keep NTML at NLCL (though decrease by 2 so that
   ! coupling between BL and convection scheme can be maintained).
   ! Reset type diagnostics.
 
-  DO l = 1, land_pts
+  do l = 1, land_pts
     j=(land_index(l)-1)/pdims%i_end + 1
     i=land_index(l) - (j-1)*pdims%i_end
-    IF (cumulus(i,j) .AND. ho2r2_orog(l)  >   900.0) THEN
-      cumulus(i,j) = .FALSE.
-      l_shallow(i,j) = .FALSE.
+    if (cumulus(i,j) .and. ho2r2_orog(l)  >   900.0) then
+      cumulus(i,j) = .false.
+      l_shallow(i,j) = .false.
       bl_type_5(i,j) = 0.0
       bl_type_6(i,j) = 0.0
       cu_over_orog(i,j) = 1.0
-      IF (ntml(i,j)  >=  3) ntml(i,j) = ntml(i,j) - 2
-    END IF
-  END DO
+      if (ntml(i,j)  >=  3) ntml(i,j) = ntml(i,j) - 2
+    end if
+  end do
 
   ! Check that CUMULUS and L_SHALLOW are still consistent
 
-  DO j = pdims%j_start, pdims%j_end
-    DO i = pdims%i_start, pdims%i_end
-      IF ( .NOT. cumulus(i,j) ) l_shallow(i,j) = .FALSE.
-    END DO
-  END DO
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
+      if ( .not. cumulus(i,j) ) l_shallow(i,j) = .false.
+    end do
+  end do
 
-END IF    ! (l_param_conv)
+end if    ! (l_param_conv)
 !-----------------------------------------------------------------------
 !     Set shallow convection diagnostic: 1.0 if L_SHALLOW (and CUMULUS)
 !                                        0.0 if .NOT. CUMULUS
 !-----------------------------------------------------------------------
-DO j = pdims%j_start, pdims%j_end
-  DO i = pdims%i_start, pdims%i_end
-    IF ( cumulus(i,j) .AND. l_shallow(i,j) ) THEN
+do j = pdims%j_start, pdims%j_end
+  do i = pdims%i_start, pdims%i_end
+    if ( cumulus(i,j) .and. l_shallow(i,j) ) then
       shallowc(i,j) = 1.0
-    ELSE
+    else
       shallowc(i,j) = 0.0
-    END IF
-  END DO
-END DO
+    end if
+  end do
+end do
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE bdy_expl2_1a
-END MODULE bdy_expl2_1a_mod
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
+end subroutine bdy_expl2_1a
+end module bdy_expl2_1a_mod

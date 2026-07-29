@@ -33,31 +33,31 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_length_mod
+module mym_length_mod
 
-USE um_types, ONLY: real_umphys
+use um_types, only: r_bl
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_LENGTH_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_LENGTH_MOD'
+contains
 
-SUBROUTINE mym_length(                                                         &
+subroutine mym_length(                                                         &
       row_length, rows, halo_i, halo_j, bl_levels,                             &
       qke, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf,                    &
       qkw, el)
 
-USE mym_const_mod, ONLY: my_alpha4, one_third, elt_min, my_alpha1,             &
+use mym_const_mod, only: my_alpha4, one_third, elt_min, my_alpha1,             &
                          my_alpha2, my_alpha3
-USE mym_option_mod, ONLY: tke_levels, my_z_limit_elb, l_3dtke
-USE parkind1, ONLY: jprb, jpim
-USE planet_constants_mod, ONLY: vkman
-USE yomhook, ONLY: lhook, dr_hook
-USE turb_diff_mod, ONLY: mix_factor
-IMPLICIT NONE
+use mym_option_mod, only: tke_levels, my_z_limit_elb, l_3dtke
+use parkind1, only: jprb, jpim
+use planet_constants_mod, only: vkman
+use yomhook, only: lhook, dr_hook
+use turb_diff_mod, only: mix_factor
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    row_length,                                                                 &
                  ! Local number of points on a row
    rows,                                                                       &
@@ -69,7 +69,7 @@ INTEGER, INTENT(IN) ::                                                         &
    bl_levels
                  ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    qke(1-halo_i:row_length+halo_i, 1-halo_j:rows+halo_j,                       &
                                                         bl_levels),            &
                  ! twice of TKE (denoted to q**2) on theta level K-1
@@ -90,7 +90,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  ! density (m^2/s^3)
 
 ! Intent OUT Variables
-REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+real(kind=r_bl), intent(out) ::                                         &
    qkw(row_length, rows, tke_levels),                                          &
                  ! q=sqrt(qke) on theta level K-1
    el(row_length, rows, tke_levels)
@@ -98,10 +98,10 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
 
 ! Local variables
 
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k
                  ! Loop indexes
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    qdz,                                                                        &
                  ! q times vertical grid space
    alp32,                                                                      &
@@ -116,104 +116,104 @@ REAL(KIND=real_umphys) ::                                                      &
                  ! additional mixing length for 3DTKE scheme (L_L)
    zeta
                  ! non-dimensional length (height over MO length)
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    elt(row_length, rows),                                                      &
                  ! mixing length related to vertical distribution
                  ! of TKE (L_T)
    vsc(row_length, rows)
                  ! work arrays
 
-REAL(KIND=real_umphys), PARAMETER ::                                           &
+real(kind=r_bl), parameter ::                                           &
    zmax = 1.0,                                                                 &
                 ! constant used in calculating els
    cns = 2.7
                 ! constant used in calculating els
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_LENGTH'
+character(len=*), parameter :: RoutineName='MYM_LENGTH'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-DO j = 1, rows
-  DO i = 1, row_length
+do j = 1, rows
+  do i = 1, row_length
     elt(i, j) = 0.0
     vsc(i, j) = 0.0
-  END DO
-END DO
+  end do
+end do
 
-DO k = 1, tke_levels
-  DO j = 1, rows
-    DO i = 1, row_length
-      qkw(i, j, k) = SQRT(MAX(qke(i, j, k), 1.0e-20))
-    END DO
-  END DO
-END DO
+do k = 1, tke_levels
+  do j = 1, rows
+    do i = 1, row_length
+      qkw(i, j, k) = sqrt(max(qke(i, j, k), 1.0e-20))
+    end do
+  end do
+end do
 
 ! vertical integration of qz and q
 ! Here, elt is still vertical integration of qz
 ! and vsc is that of q
-DO k = 2, tke_levels
-  DO j = 1, rows
-    DO i = 1, row_length
+do k = 2, tke_levels
+  do j = 1, rows
+    do i = 1, row_length
       qdz = qkw(i, j, k) * (z_uv(i, j, k) - z_uv(i, j, k - 1))
       elt(i, j) = elt(i, j) + qdz * z_tq(i, j, k - 1)
       vsc(i, j) = vsc(i, j) + qdz
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-DO j = 1, rows
-  DO i = 1, row_length
-    elt(i, j) = MAX(my_alpha1 * elt(i, j) / (vsc(i, j) + 1.0e-10),             &
+do j = 1, rows
+  do i = 1, row_length
+    elt(i, j) = max(my_alpha1 * elt(i, j) / (vsc(i, j) + 1.0e-10),             &
                     elt_min)
-    vsc(i, j) = (elt(i, j) * MAX(fb_surf(i, j), 0.0)) ** one_third
-  END DO
-END DO
+    vsc(i, j) = (elt(i, j) * max(fb_surf(i, j), 0.0)) ** one_third
+  end do
+end do
 
 alp32 = my_alpha3 / my_alpha2
-DO k = 2, tke_levels
-  DO j = 1, rows
-    DO i = 1, row_length
-      IF (dbdz(i, j, k) > 0.0) THEN
-        rbv = 1.0 / SQRT(dbdz(i, j, k))
+do k = 2, tke_levels
+  do j = 1, rows
+    do i = 1, row_length
+      if (dbdz(i, j, k) > 0.0) then
+        rbv = 1.0 / sqrt(dbdz(i, j, k))
         elb = my_alpha2 * qkw(i, j, k) * rbv                                   &
-                  * (1.0 + alp32 * SQRT(vsc(i, j) * rbv / elt(i, j)))
-      ELSE
+                  * (1.0 + alp32 * sqrt(vsc(i, j) * rbv / elt(i, j)))
+      else
         elb = 1.0e10
-      END IF
+      end if
 
-      IF (z_tq(i, j, k - 1) > my_z_limit_elb) THEN
-        elb = MIN(elb, z_uv(i, j, k) - z_uv(i, j, k - 1))
-      END IF
+      if (z_tq(i, j, k - 1) > my_z_limit_elb) then
+        elb = min(elb, z_uv(i, j, k) - z_uv(i, j, k - 1))
+      end if
 
       zeta = z_tq(i, j, k - 1) * r_mosurf(i, j)
-      IF (zeta > 0.0) THEN
+      if (zeta > 0.0) then
         els = vkman * z_tq(i, j, k - 1)                                        &
-                   / (1.0 + cns * MIN(zeta, zmax))
-      ELSE
+                   / (1.0 + cns * min(zeta, zmax))
+      else
         els = vkman * z_tq(i, j, k - 1)                                        &
-                   * MIN((1.0 - my_alpha4 * zeta) ** 0.2, 2.0)
-      END IF
-      IF (l_3dtke) THEN
+                   * min((1.0 - my_alpha4 * zeta) ** 0.2, 2.0)
+      end if
+      if (l_3dtke) then
         ell = mix_factor * delta_smag(i,j)
         el(i, j, k) = elb / ( elb / elt(i, j) + elb / els + elb / ell + 1.0)
-      ELSE
+      else
         el(i, j, k) = elb / ( elb / elt(i, j) + elb / els + 1.0)
-      END IF
-    END DO
-  END DO
-END DO
+      end if
+    end do
+  end do
+end do
 
-DO j = 1, rows
-  DO i = 1, row_length
+do j = 1, rows
+  do i = 1, row_length
     el(i, j, 1) = el(i, j, 2)
-  END DO
-END DO
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+  end do
+end do
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_length
-END MODULE mym_length_mod
+end subroutine mym_length
+end module mym_length_mod

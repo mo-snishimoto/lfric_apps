@@ -34,16 +34,16 @@
 !  Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: boundary_layer
 !---------------------------------------------------------------------
-MODULE mym_initialize_mod
+module mym_initialize_mod
 
-USE um_types, ONLY: real_umphys, real_eps
+use um_types, only: r_bl, real_eps
 
-IMPLICIT NONE
+implicit none
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_INITIALIZE_MOD'
-CONTAINS
+character(len=*), parameter, private :: ModuleName = 'MYM_INITIALIZE_MOD'
+contains
 
-SUBROUTINE mym_initialize(                                                     &
+subroutine mym_initialize(                                                     &
 ! IN levels
       bl_levels,                                                               &
 ! IN fields
@@ -52,29 +52,29 @@ SUBROUTINE mym_initialize(                                                     &
 ! INOUT fields
       e_trb, tsq, qsq, cov)
 
-USE atm_fields_bounds_mod, ONLY: tdims, pdims, tdims_s
-USE mym_const_mod, ONLY: b1, b2, qke_max, coef_trbvar_diff,                    &
+use atm_fields_bounds_mod, only: tdims, pdims, tdims_s
+use mym_const_mod, only: b1, b2, qke_max, coef_trbvar_diff,                    &
       coef_trbvar_diff_tke
-USE mym_option_mod, ONLY:                                                      &
+use mym_option_mod, only:                                                      &
       my_lowest_pd_surf, l_my_extra_level, my_z_extra_fact,                    &
       tke_levels, l_my_lowest_pd_surf_tqc
-USE planet_constants_mod, ONLY: vkman
+use planet_constants_mod, only: vkman
 
-USE parkind1, ONLY: jprb, jpim
-USE yomhook, ONLY: lhook, dr_hook
-USE mym_calcphi_mod, ONLY: mym_calcphi
-USE mym_diff_matcoef_mod, ONLY: mym_diff_matcoef
-USE mym_implic_mod, ONLY: mym_implic
-USE mym_length_mod, ONLY: mym_length
-USE mym_level2_mod, ONLY: mym_level2
-IMPLICIT NONE
+use parkind1, only: jprb, jpim
+use yomhook, only: lhook, dr_hook
+use mym_calcphi_mod, only: mym_calcphi
+use mym_diff_matcoef_mod, only: mym_diff_matcoef
+use mym_implic_mod, only: mym_implic
+use mym_length_mod, only: mym_length
+use mym_level2_mod, only: mym_level2
+implicit none
 
 ! Intent IN Variables
-INTEGER, INTENT(IN) ::                                                         &
+integer, intent(in) ::                                                         &
    bl_levels
                   ! Max. no. of "boundary" levels
 
-REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+real(kind=r_bl), intent(in) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
         bl_levels+1),                                                          &
                   ! Z_UV(*,K) is height of u level k
@@ -121,7 +121,7 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                   ! IN delta_x used by Smagorinsky
 
 ! Intent INOUT Variables
-REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
+real(kind=r_bl), intent(in out) ::                                      &
    e_trb(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
           bl_levels),                                                          &
                   ! TKE defined on theta levels K-1
@@ -139,17 +139,17 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
                   ! (thetal'qw') defined on theta levels K-1
 
 ! Local variables
-INTEGER ::                                                                     &
+integer ::                                                                     &
    i, j, k, ll
                  ! Loop indexes
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    phm,                                                                        &
                  ! gradient function at the surface
    elq
                  ! mixing length * qkw
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    gm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,tke_levels),         &
                  ! square of wind shear on theta level K-1
                  ! (a denominator of gradient Richardson number)
@@ -175,7 +175,7 @@ REAL(KIND=real_umphys) ::                                                      &
    phh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
                  ! gradient function for scalars
 
-REAL(KIND=real_umphys) ::                                                      &
+real(kind=r_bl) ::                                                      &
    pdk(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        tke_levels),                                                            &
                  ! production terms of qke divided by elq
@@ -249,44 +249,44 @@ REAL(KIND=real_umphys) ::                                                      &
                  ! diffusion coefficient for momentum
                  ! on theta level K-1
 
-INTEGER ::                                                                     &
+integer ::                                                                     &
    my3_itr_ini
                  ! number of iteration
-INTEGER :: k_start
+integer :: k_start
 
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
+integer(kind=jpim), parameter :: zhook_in  = 0
+integer(kind=jpim), parameter :: zhook_out = 1
+real(kind=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_INITIALIZE'
+character(len=*), parameter :: RoutineName='MYM_INITIALIZE'
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 my3_itr_ini = tke_levels + 1
 
-IF (my_lowest_pd_surf == 0) THEN
-  l_my_extra_level = .FALSE.
+if (my_lowest_pd_surf == 0) then
+  l_my_extra_level = .false.
   my_z_extra_fact = 1.0
-END IF
+end if
 
-IF (l_my_extra_level) THEN
+if (l_my_extra_level) then
   k_start = 1
-ELSE
+else
   k_start = 2
-END IF
+end if
 
-DO k = 1, bl_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 1, bl_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       e_trb(i, j, k) = 0.0
       tsq(i, j, k) = 0.0
       qsq(i, j, k) = 0.0
       cov(i, j, k) = 0.0
-    END DO
-  END DO
-END DO
+    end do
+  end do
+end do
 
-CALL mym_level2(                                                               &
+call mym_level2(                                                               &
       bl_levels, dbdz, dvdzm, gm, gh, sm, sh)
 
 do j = tdims%j_start, tdims%j_end
@@ -295,100 +295,100 @@ do j = tdims%j_start, tdims%j_end
   end do
 end do
 
-DO k = 2, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
+do k = 2, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
       pdk(i, j, k) = sm(i, j, k) * gm(i, j, k)                                 &
                                        + sh(i, j, k) * gh(i, j, k)
-      IF (pdk(i, j, k) <= 0.0) THEN
+      if (pdk(i, j, k) <= 0.0) then
         qke_nohalo(i, j, k) = 0.0
         pdk(i, j, k) = 0.0
         pdt(i, j, k) = 0.0
         pdq(i, j, k) = 0.0
         pdc(i, j, k) = 0.0
-      ELSE
+      else
         qke_nohalo(i, j, k) = 1.0e-5
         pdt(i, j, k) = sh(i, j, k) * dtldzm(i, j, k) ** 2
         pdq(i, j, k) = sh(i, j, k) * dqwdzm(i, j, k) ** 2
         pdc(i, j, k) = sh(i, j, k) * dtldzm(i, j, k) * dqwdzm(i, j, k)
-      END IF
-    END DO
-  END DO
-END DO
+      end if
+    end do
+  end do
+end do
 
-IF (my_lowest_pd_surf > 0) THEN
-  CALL mym_calcphi(                                                            &
+if (my_lowest_pd_surf > 0) then
+  call mym_calcphi(                                                            &
         bl_levels, z_tq, r_mosurf, pmz, phh)
-  IF (l_my_extra_level) THEN
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+  if (l_my_extra_level) then
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         pdk0(i, j) = 1.0 * u_s(i, j) ** 3 * pmz(i, j)                          &
                     / (vkman * z_tq(i, j, 1) * my_z_extra_fact)
-      END DO
-    END DO
+      end do
+    end do
 
-    IF (l_my_lowest_pd_surf_tqc) THEN
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+    if (l_my_lowest_pd_surf_tqc) then
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
           phm  = 1.0 / u_s(i, j) * phh(i, j)                                   &
                        / (vkman * z_tq(i, j, 1) * my_z_extra_fact)
           pdt0(i, j) = phm * ftl(i, j, 1) ** 2
           pdq0(i, j) = phm * fqw(i, j, 1) ** 2
           pdc0(i, j) = phm * ftl(i, j, 1) * fqw(i, j, 1)
-        END DO
-      END DO
-    END IF
-  ELSE
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
+        end do
+      end do
+    end if
+  else
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
         pdk0(i, j) = 1.0 * u_s(i, j) ** 3 * pmz(i, j)                          &
                     / (vkman * z_tq(i, j, 1))
-      END DO
-    END DO
+      end do
+    end do
 
-    IF (l_my_lowest_pd_surf_tqc) THEN
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
+    if (l_my_lowest_pd_surf_tqc) then
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
           phm  = 1.0 / u_s(i, j)* phh(i, j)                                    &
                            / (vkman * z_tq(i, j, 1))
           pdt0(i, j) = phm * ftl(i, j, 1) ** 2
           pdq0(i, j) = phm * fqw(i, j, 1) ** 2
           pdc0(i, j) = phm * ftl(i, j, 1) * fqw(i, j, 1)
-        END DO
-      END DO
-    END IF
-  END IF ! IF L_MY_EXTRA_LEVEL
-END IF  ! IF MY_lowest_pd_surf
+        end do
+      end do
+    end if
+  end if ! IF L_MY_EXTRA_LEVEL
+end if  ! IF MY_lowest_pd_surf
 
-DO ll = 1, my3_itr_ini
-  CALL mym_length(                                                             &
+do ll = 1, my3_itr_ini
+  call mym_length(                                                             &
         tdims%i_end, tdims%j_end, 0, 0, bl_levels,                             &
         qke_nohalo, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf,           &
         qkw, el)
 
-  DO k = 2, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
-        IF (qke_nohalo(i, j, k) <= 0.0) THEN
+  do k = 2, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+        if (qke_nohalo(i, j, k) <= 0.0) then
           qkw(i, j, k) = 0.0
-        END IF
+        end if
         dfm(i, j, k) = sm(i, j, k) * qkw(i, j, k) * el(i, j, k)
-      END DO
-    END DO
-  END DO
+      end do
+    end do
+  end do
 
-  CALL mym_diff_matcoef(                                                       &
+  call mym_diff_matcoef(                                                       &
         bl_levels, coef_trbvar_diff_tke, z_uv, z_tq, dfm,                      &
         aa_qke, bb_qke, cc_qke)
 
-  CALL mym_diff_matcoef(                                                       &
+  call mym_diff_matcoef(                                                       &
         bl_levels, coef_trbvar_diff, z_uv, z_tq, dfm,                          &
         aa_oth, bb_oth, cc_oth)
 
-  DO k = k_start, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
-        IF (bb_qke(i, j, k) == 0.0) THEN
+  do k = k_start, tke_levels
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+        if (bb_qke(i, j, k) == 0.0) then
           aa_qke(i, j, k) = 0.0
           bb_qke(i, j, k) = 1.0
           cc_qke(i, j, k) = 0.0
@@ -408,12 +408,12 @@ DO ll = 1, my3_itr_ini
           bb_cov(i, j, k) = 1.0
           cc_cov(i, j, k) = 0.0
           cov(i, j, k) = 0.0
-        ELSE
+        else
           elq = qkw(i, j, k) * el(i, j, k)
           aa_qke(i, j, k) = - aa_qke(i, j, k)
           bb_qke(i, j, k) = - bb_qke(i, j, k)                                  &
                             + 2.0 * qkw(i, j, k) / (b1 * el(i, j, k))
-          bb_qke(i, j, k) = SIGN(MAX(ABS(bb_qke(i, j, k)), 1.0e-20_real_umphys),&
+          bb_qke(i, j, k) = sign(max(abs(bb_qke(i, j, k)), 1.0e-20_r_bl),&
                                     bb_qke(i, j, k))
 
           cc_qke(i, j, k) = - cc_qke(i, j, k)
@@ -422,7 +422,7 @@ DO ll = 1, my3_itr_ini
           aa_oth(i, j, k) = - aa_oth(i, j, k)
           bb_oth(i, j, k) = - bb_oth(i, j, k)                                  &
                             + 2.0 * qkw(i, j, k) / (b2 * el(i, j, k))
-          bb_oth(i, j, k) = SIGN(MAX(ABS(bb_oth(i, j, k)), 1.0e-20_real_umphys),&
+          bb_oth(i, j, k) = sign(max(abs(bb_oth(i, j, k)), 1.0e-20_r_bl),&
                                     bb_oth(i, j, k))
           cc_oth(i, j, k) = - cc_oth(i, j, k)
 
@@ -440,66 +440,66 @@ DO ll = 1, my3_itr_ini
           bb_cov(i, j, k) = bb_oth(i, j, k)
           cc_cov(i, j, k) = cc_oth(i, j, k)
           cov(i, j, k) = 2.0 * elq * pdc(i, j, k)
-        END IF
-      END DO
-    END DO
-  END DO
+        end if
+      end do
+    end do
+  end do
 
-  IF (my_lowest_pd_surf > 0) THEN
+  if (my_lowest_pd_surf > 0) then
     k = k_start
-    DO j = tdims%j_start, tdims%j_end
-      DO i = tdims%i_start, tdims%i_end
-        IF (ABS(bb_qke(i, j, k)) >= real_eps) THEN
+    do j = tdims%j_start, tdims%j_end
+      do i = tdims%i_start, tdims%i_end
+        if (abs(bb_qke(i, j, k)) >= real_eps) then
           qke_nohalo(i, j, k) = 2.0 * pdk0(i, j)
-        END IF
-      END DO
-    END DO
+        end if
+      end do
+    end do
 
-    IF (l_my_lowest_pd_surf_tqc) THEN
-      DO j = tdims%j_start, tdims%j_end
-        DO i = tdims%i_start, tdims%i_end
-          IF (ABS(bb_qke(i, j, k)) >= real_eps) THEN
+    if (l_my_lowest_pd_surf_tqc) then
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
+          if (abs(bb_qke(i, j, k)) >= real_eps) then
             tsq(i, j, k) = 2.0 * pdt0(i, j)
             qsq(i, j, k) = 2.0 * pdq0(i, j)
             cov(i, j, k) = 2.0 * pdc0(i, j)
-          END IF
-        END DO
-      END DO
-    END IF ! IF L_MY_lowest_pd_surf_tqc
-  END IF   ! IF MY_lowest_pd_surf > 0
+          end if
+        end do
+      end do
+    end if ! IF L_MY_lowest_pd_surf_tqc
+  end if   ! IF MY_lowest_pd_surf > 0
 
-  CALL mym_implic(                                                             &
+  call mym_implic(                                                             &
                   tke_levels, k_start, tke_levels,                             &
                   aa_qke, bb_qke, cc_qke, qke_nohalo)
 
-  CALL mym_implic(                                                             &
+  call mym_implic(                                                             &
                   tke_levels, k_start, tke_levels,                             &
                   aa_tsq, bb_tsq, cc_tsq, tsq)
 
-  CALL mym_implic(                                                             &
+  call mym_implic(                                                             &
                   tke_levels, k_start, tke_levels,                             &
                   aa_qsq, bb_qsq, cc_qsq, qsq)
 
-  CALL mym_implic(                                                             &
+  call mym_implic(                                                             &
                   tke_levels, k_start, tke_levels,                             &
                   aa_cov, bb_cov, cc_cov, cov)
 
-END DO  ! iteration ll = 1, my3_itr_ini
+end do  ! iteration ll = 1, my3_itr_ini
 
-DO k = k_start, tke_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      e_trb(i, j, k) = 0.5 * MIN(                                              &
-                                  MAX(qke_nohalo(i, j, k), 1.0e-20),           &
+do k = k_start, tke_levels
+  do j = tdims%j_start, tdims%j_end
+    do i = tdims%i_start, tdims%i_end
+      e_trb(i, j, k) = 0.5 * min(                                              &
+                                  max(qke_nohalo(i, j, k), 1.0e-20),           &
                                   qke_max)
-      tsq(i, j, k) = MAX(tsq(i, j, k), 0.0)
-      qsq(i, j, k) = MAX(qsq(i, j, k), 0.0)
-    END DO
-  END DO
-END DO
+      tsq(i, j, k) = max(tsq(i, j, k), 0.0)
+      qsq(i, j, k) = max(qsq(i, j, k), 0.0)
+    end do
+  end do
+end do
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
+if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+return
 
-END SUBROUTINE mym_initialize
-END MODULE mym_initialize_mod
+end subroutine mym_initialize
+end module mym_initialize_mod
