@@ -24,7 +24,7 @@ CONTAINS
 
 SUBROUTINE ddf_mix_length(                                                     &
       row_length, rows, halo_i, halo_j, bl_levels,                             &
-      z_uv, z_tq, dbdz, r_mosurf, fb_surf, h_pbl, e_trb,                       &
+      z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, h_pbl, e_trb,           &
       elm, coef_ce, ekw)
 
 USE mym_option_mod, ONLY: tke_dlen,                                            &
@@ -60,6 +60,8 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                   ! Buoyancy gradient across layer
                   ! interface interpolated to theta levels.
                   ! (:,:,K) repserents the value on theta level K-1
+   delta_smag(row_length,rows),                                                &
+                  ! IN delta_x used by Smagorinsky
    r_mosurf(row_length, rows),                                                 &
                   ! reciprocal of Monin-Obkhov length
    fb_surf(row_length,rows),                                                   &
@@ -126,7 +128,7 @@ IF (tke_dlen == my_length) THEN
   END DO
   CALL mym_length(                                                             &
         row_length, rows, halo_i, halo_j, bl_levels,                           &
-        qke, z_uv, z_tq, dbdz, r_mosurf, fb_surf,                              &
+        qke, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf,                  &
         qkw, elm)
 ELSE IF (tke_dlen == ddf_length                                                &
    .OR. tke_dlen == non_local_like_length) THEN

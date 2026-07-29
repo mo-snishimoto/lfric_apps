@@ -44,7 +44,7 @@ CONTAINS
 
 SUBROUTINE mym_length(                                                         &
       row_length, rows, halo_i, halo_j, bl_levels,                             &
-      qke, z_uv, z_tq, dbdz, r_mosurf, fb_surf,                                &
+      qke, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf,                    &
       qkw, el)
 
 USE mym_const_mod, ONLY: my_alpha4, one_third, elt_min, my_alpha1,             &
@@ -53,7 +53,6 @@ USE mym_option_mod, ONLY: tke_levels, my_z_limit_elb, l_3dtke
 USE parkind1, ONLY: jprb, jpim
 USE planet_constants_mod, ONLY: vkman
 USE yomhook, ONLY: lhook, dr_hook
-USE turb_diff_ctl_mod, ONLY: delta_smag
 USE turb_diff_mod, ONLY: mix_factor
 IMPLICIT NONE
 
@@ -82,6 +81,8 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  ! Buoyancy gradient across layer
                  ! interface interpolated to theta levels.
                  ! (:,:,K) represents the value on theta level K-1
+   delta_smag(row_length,rows),                                                &
+                 ! IN delta_x used by Smagorinsky
    r_mosurf(row_length, rows),                                                 &
                  ! reciprocal of Monin-Obukhov Length
    fb_surf(row_length,rows)

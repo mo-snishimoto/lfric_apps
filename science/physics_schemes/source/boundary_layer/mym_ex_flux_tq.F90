@@ -23,16 +23,13 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_EX_FLUX_TQ_MOD'
 CONTAINS
 
 SUBROUTINE mym_ex_flux_tq(                                                     &
-      bl_levels, nSCMDpkgs, L_SCMDiags,                                        &
+      bl_levels,                                                               &
       tl, qw, rhokh, rhogamt, rhogamq, rdz,                                    &
       ftl, fqw)
 
 USE atm_fields_bounds_mod, ONLY: tdims, pdims
 USE model_domain_mod,      ONLY: model_type, mt_single_column
 USE planet_constants_mod,  ONLY: cp, grcp
-USE s_scmop_mod,           ONLY: default_streams,                              &
-                                 t_avg, d_bl, scmdiag_bl
-USE scmoutput_mod,         ONLY: scmoutput
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -43,13 +40,6 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) ::                                                         &
    bl_levels
                  ! Max. no. of "boundary" levels
-
-! Additional variables for SCM diagnostics which are dummy in full UM
-INTEGER, INTENT(IN) ::                                                         &
-   nSCMDpkgs             ! No of SCM diagnostics packages
-
-LOGICAL, INTENT(IN) ::                                                         &
-   L_SCMDiags(nSCMDpkgs) ! Logicals for SCM diagnostics packages
 
 REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end, bl_levels),         &
@@ -147,39 +137,6 @@ DO k = 2, bl_levels
     END DO
   END DO
 END DO
-
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( l_scmdiags(scmdiag_bl) .AND.                                              &
-     model_type == mt_single_column ) THEN
-
-  DO k=1, bl_levels
-    DO j=tdims%j_start, tdims%j_end
-      DO i=tdims%i_start, tdims%i_end
-        grad_ftl(i,j,k)= cp * grad_ftl(i,j,k)
-        count_grad_ftl(i,j,k) = cp * count_grad_ftl(i,j,k)
-      END DO ! i
-    END DO ! j
-  END DO ! k
-
-  CALL scmoutput(grad_ftl,'Grad_ftl',                                          &
-       'Down gradient flux of TL','W/m2',                                      &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  CALL scmoutput(count_grad_ftl,'CG_ftl',                                      &
-       'Counter gradient part of flux of TL','W/m2',                           &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  CALL scmoutput(grad_fqw,'Grad_fqw',                                          &
-       'Down-gradient flux of QW','kg/m2/s',                                   &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  CALL scmoutput(count_grad_fqw,'CG_fqw',                                      &
-       'Counter gradient part of  flux of QW','kg/m2/s',                       &
-       t_avg,d_bl,default_streams,'',routinename)
-
-END IF ! scmdiag_bl / model_type
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

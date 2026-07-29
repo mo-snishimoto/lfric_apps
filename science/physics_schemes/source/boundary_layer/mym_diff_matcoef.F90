@@ -22,11 +22,9 @@ IMPLICIT NONE
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_DIFF_MATCOEF_MOD'
 CONTAINS
 
-SUBROUTINE mym_diff_matcoef(bl_levels, coef, dfm, aa, bb, cc)
+SUBROUTINE mym_diff_matcoef(bl_levels, coef, z_uv, z_tq, dfm, aa, bb, cc)
 
 USE atm_fields_bounds_mod, ONLY: pdims, tdims_s, tdims
-USE level_heights_mod, ONLY:                                                   &
-  r_theta_levels, r_rho_levels
 USE mym_option_mod, ONLY:                                                      &
       l_my_extra_level, my_z_extra_fact, tke_levels
 USE parkind1, ONLY: jprb, jpim
@@ -44,6 +42,12 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  ! momentum
 
 REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+   z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
+       bl_levels+1),                                                           &
+                 ! Z_UV(*,K) is height of u level k
+   z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+       bl_levels),                                                             &
+                 ! Z_TQ(*,K) is height of theta level k
    dfm(tdims_s%i_start:tdims_s%i_end,tdims_s%j_start:tdims_s%j_end,            &
        bl_levels)
                  ! diffusion coefficients for momentum
@@ -93,21 +97,24 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_DIFF_MATCOEF'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-DO k = 1, tke_levels
+k = 1
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
+    r_dr_theta(i, j, k) = 1.0 / (z_uv(i, j, k + 1) - z_uv(i, j, k))
+    r_dr_rho(i, j, k) = 1.0 / z_tq(i, j, k)
+    weight1(i, j, k) = z_uv(i, j, k) * r_dr_rho(i, j, k)
+    weight2(i, j, k) = (z_tq(i, j, k) - z_uv(i, j, k)) * r_dr_rho(i, j, k)
+  end do
+end do
+
+DO k = 2, tke_levels
   DO j = tdims%j_start, tdims%j_end
     DO i = tdims%i_start, tdims%i_end
-      r_dr_theta(i, j, k) = 1.0                                                &
-         / (r_rho_levels(i, j, k + 1) - r_rho_levels(i, j, k))
-      r_dr_rho(i, j, k) = 1.0                                                  &
-                / (r_theta_levels(i, j, k)                                     &
-                        - r_theta_levels(i, j, k - 1))
+      r_dr_theta(i, j, k) = 1.0 / (z_uv(i, j, k + 1) - z_uv(i, j, k))
+      r_dr_rho(i, j, k) = 1.0 / (z_tq(i, j, k) - z_tq(i, j, k - 1))
 
-      weight1(i, j, k) =                                                       &
-         (r_rho_levels(i, j, k) - r_theta_levels(i, j, k - 1))                 &
-              * r_dr_rho(i, j, k)
-      weight2(i, j, k) =                                                       &
-         (r_theta_levels(i, j, k) - r_rho_levels(i, j, k))                     &
-              * r_dr_rho(i, j, k)
+      weight1(i, j, k) = (z_uv(i, j, k) - z_tq(i, j, k - 1)) * r_dr_rho(i, j, k)
+      weight2(i, j, k) = (z_tq(i, j, k) - z_uv(i, j, k)) * r_dr_rho(i, j, k)
     END DO
   END DO
 END DO
@@ -173,7 +180,7 @@ IF (l_my_extra_level) THEN
     DO i = tdims%i_start, tdims%i_end
       aa(i, j, 1) = 0.0
       cc(i, j, 1) = coef * dfm(i, j, 2)                                        &
-              / ((r_theta_levels(i, j, 1) - r_theta_levels(i, j, 0))           &
+              / (z_tq(i, j, 1)                                                &
                   * my_z_extra_fact) ** 2
 
       bb(i, j, 1) = - aa(i, j, 1) - cc(i, j, 1)

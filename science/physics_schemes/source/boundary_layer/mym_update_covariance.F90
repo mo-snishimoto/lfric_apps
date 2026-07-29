@@ -27,12 +27,13 @@ SUBROUTINE mym_update_covariance(                                              &
 ! IN levels
       bl_levels,                                                               &
 ! IN fields
+      z_uv, z_tq,                                                              &
       qkw, el, dfm, pdt_tsq, pdt_cov, pdt_res,                                 &
       pdq_qsq, pdq_cov, pdq_res, pdc_cov, pdc_tsq, pdc_qsq, pdc_res,           &
 ! INOUT fields
       tsq, qsq, cov)
 
-USE atm_fields_bounds_mod, ONLY: tdims, tdims_s
+USE atm_fields_bounds_mod, ONLY: tdims, tdims_s, pdims
 USE mym_const_mod, ONLY: b2, coef_trbvar_diff
 USE mym_option_mod, ONLY: l_my_extra_level, tke_levels
 USE timestep_mod, ONLY: timestep
@@ -48,6 +49,12 @@ INTEGER, INTENT(IN) ::                                                         &
                  ! Max. no. of "boundary" level
 
 REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+   z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
+        bl_levels+1),                                                          &
+                 ! Z_UV(*,K) is height of u level k
+   z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+        bl_levels),                                                            &
+                 ! Z_TQ(*,K) is height of theta level k.
    qkw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        tke_levels),                                                            &
                  ! sqrt(qke) = sqrt(2TKE)
@@ -162,7 +169,7 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_UPDATE_COVARIANCE'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 CALL mym_diff_matcoef(                                                         &
-      bl_levels,coef_trbvar_diff, dfm, aa, bb, cc)
+      bl_levels,coef_trbvar_diff, z_uv, z_tq, dfm, aa, bb, cc)
 
 IF (l_my_extra_level) THEN
   k_start = 1

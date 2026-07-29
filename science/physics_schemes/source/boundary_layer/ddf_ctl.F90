@@ -15,7 +15,7 @@
 !---------------------------------------------------------------------
 MODULE ddf_ctl_mod
 
-USE um_types, ONLY: real_umphys, real_eps
+USE um_types, ONLY: real_umphys
 
 IMPLICIT NONE
 
@@ -24,30 +24,22 @@ CONTAINS
 
 SUBROUTINE ddf_ctl(                                                            &
 ! IN levels/switches
-      bl_levels, nSCMDpkgs, L_SCMDiags, BL_diag, cycleno,                      &
+      bl_levels, BL_diag,                                                      &
 ! IN fields
       z_uv,z_tq, u_p, v_p, qw, tl, t, q, qcl, qcf,                             &
       p_theta_levels, p_half, bq_gb, bt_gb, rho_mix, rho_wet_tq,               &
-      dtldzm, dqwdzm, dudz, dvdz, dbdz, dvdzm, u_s, fb_surf, pstar,            &
+      dtldzm, dqwdzm, dudz, dvdz, dbdz, dvdzm, delta_smag, u_s, fb_surf, pstar,&
 ! INOUT fields
       e_trb, rhokm, rhokh, zhpar_shcu)
 
-USE atm_fields_bounds_mod, ONLY: tdims_l, tdims, pdims, tdims_s,               &
-                                 ScmRowLen, ScmRow
+USE atm_fields_bounds_mod, ONLY: tdims_l, tdims, pdims, tdims_s
 USE bl_diags_mod, ONLY: strnewbldiag
-USE dynamics_input_mod, ONLY: numcycles
 USE gen_phys_inputs_mod, ONLY: l_mr_physics
-USE level_heights_mod, ONLY:                                                   &
-  r_theta_levels, r_rho_levels
-USE missing_data_mod, ONLY: rmdi
 USE model_domain_mod, ONLY: model_type, mt_single_column
 USE mym_const_mod, ONLY: e_trb_max
 USE mym_option_mod, ONLY: my_ini_dbdz_min, tke_cm_mx, l_shcu_buoy,             &
       l_my_condense, tke_cm_fa, my_lowest_pd_surf, tke_levels,                 &
       l_my_ini_zero, l_my_initialize
-USE s_scmop_mod,    ONLY: default_streams,                                     &
-                          t_avg, d_bl, d_sl, scmdiag_bl
-USE scmoutput_mod,  ONLY: scmoutput
 
 USE parkind1, ONLY: jprb, jpim
 USE planet_constants_mod, ONLY: vkman, kappa, pref, c_virtual, grcp, g
@@ -64,16 +56,8 @@ IMPLICIT NONE
 
 ! Intent In Variables
 INTEGER, INTENT(IN) ::                                                         &
-   bl_levels,                                                                  &
+   bl_levels
                   ! Max. no. of "boundary" levels
-   cycleno        ! Iteration number (EG outer loop)
-
-! Additional variables for SCM diagnostics which are dummy in full UM
-INTEGER, INTENT(IN) ::                                                         &
-   nSCMDpkgs             ! No of SCM diagnostics packages
-
-LOGICAL, INTENT(IN) ::                                                         &
-   L_SCMDiags(nSCMDpkgs) ! Logicals for SCM diagnostics packages
 
 REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
@@ -151,6 +135,8 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
          2:bl_levels),                                                         &
                   ! Modulus of wind shear at theta levels.
                   ! (:,:,K) repserents the value on theta level K-1
+   delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
+                  ! IN delta_x used by Smagorinsky
    u_s(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                   &
                   ! Surface friction velocity
    fb_surf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),               &
@@ -181,7 +167,7 @@ TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
 
 ! Local Variables
 INTEGER ::                                                                     &
-   i, j, k, iScm, jScm
+   i, j, k
                   ! Loop indexes
 
 REAL(KIND=real_umphys) ::                                                      &
@@ -315,8 +301,6 @@ REAL(KIND=real_umphys), PARAMETER ::                                           &
                   ! factor of a diffusion coef of E_TRB to that of
                   ! momentum
 
-! Scm arrays
-REAL(KIND=real_umphys) :: TmpScm3d(ScmRowLen,ScmRow,bl_levels)
 CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'DDF_CTL'
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -383,7 +367,7 @@ IF (l_first) THEN
   ! IF the first value of e_trb has been set to be missing by the
   ! reconfiguration, the initialization for the whole domain
   ! is essential.
-  IF (l_my_initialize .OR. ABS(e_trb(1, 1, 1) - rmdi) < real_eps) THEN
+  IF (l_my_initialize) THEN
     IF (l_my_ini_zero) THEN
       DO k = 1, bl_levels
         DO j = tdims%j_start, tdims%j_end
@@ -408,7 +392,7 @@ IF (l_first) THEN
       END DO
       CALL ddf_initialize(                                                     &
          bl_levels,                                                            &
-         z_uv, z_tq, dbdz_l, dvdzm, r_mosurf, fb_surf, u_s, h_pbl,             &
+         z_uv, z_tq, dbdz_l, dvdzm, delta_smag, r_mosurf, fb_surf, u_s, h_pbl, &
          e_trb)
       ! Above tke_levels, the prognostic variables should be zeros.
       DO k = tke_levels + 1, bl_levels
@@ -419,27 +403,21 @@ IF (l_first) THEN
         END DO
       END DO
     END IF  ! test if l_my_ini_zero
-  END IF  ! test if l_my_initialize .OR. e_trb == rmdi
+  END IF  ! test if l_my_initialize
 
-  IF (l_shcu_buoy) THEN
+  IF (l_shcu_buoy .and. l_my_initialize) THEN
     DO j = tdims%j_start, tdims%j_end
       DO i = tdims%i_start, tdims%i_end
-        IF (ABS(zhpar_shcu(i, j) - rmdi) < real_eps) THEN
-          ! if missing has been set by the reconfiguration,
-          ! it is replaced with z_tq(tke_levels-1).
-          zhpar_shcu(i, j) = z_tq(i, j, tke_levels-1)
-        END IF
+        zhpar_shcu(i, j) = z_tq(i, j, tke_levels-1)
       END DO
     END DO
   END IF
-  ! need to initialise variables on every cycle as they will have been
-  ! reset to mdi
-  IF (cycleno == numcycles) l_first = .FALSE.
+  l_first = .FALSE.
 END IF
 
 CALL ddf_mix_length(                                                           &
     tdims%i_end,tdims%j_end,tdims_l%halo_i,tdims_l%halo_j, bl_levels,          &
-    z_uv, z_tq, dbdz, r_mosurf, fb_surf, h_pbl, e_trb,                         &
+    z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, h_pbl, e_trb,             &
     elm, coef_ce, ekw)
 
   ! Calculate diffusion coefficients
@@ -453,7 +431,7 @@ DO k = 2, tke_levels
       END IF
 
       r_pr = 1.0 + 2.0 * elm(i, j, k)                                          &
-              / (r_rho_levels(i, j, k) - r_rho_levels(i, j, k - 1))
+              / (z_uv(i, j, k) - z_uv(i, j, k - 1))
       rhokm(i, j, k) = coef_cm * elm(i, j, k) * ekw(i, j, k)
       rhokh_tq(i, j, k) = rhokm(i, j, k) * r_pr
     END DO
@@ -493,7 +471,7 @@ IF (l_my_condense .OR. l_shcu_buoy) THEN
 
   CALL mym_condensation(                                                       &
   ! IN levels/switches
-            bl_levels, levflag, nSCMDpkgs,L_SCMDiags,                          &
+            bl_levels, levflag,                                                &
             BL_diag,                                                           &
   ! IN fields
             qw, tl, t, p_theta_levels, tsq, qsq, cov,                          &
@@ -517,7 +495,7 @@ END IF
 IF (l_shcu_buoy) THEN
   CALL mym_shcu_buoy(                                                          &
   ! IN levels/switches
-             bl_levels, nSCMDpkgs,L_SCMDiags, BL_diag,                         &
+             bl_levels, BL_diag,                                               &
   ! IN fields
              fb_surf, u_s, pstar, z_tq, z_uv, p_theta_levels, p_half,          &
              u_p, v_p, t, q, qcl, qcf, q1, cld,                                &
@@ -570,55 +548,7 @@ IF (my_lowest_pd_surf > 0) THEN
 END IF
 
 CALL mym_update_fields(                                                        &
-        bl_levels, diff_fact, rhokm, prod, disp_coef, e_trb)
-
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( l_scmdiags(scmdiag_bl) .AND.                                              &
-     model_type == mt_single_column ) THEN
-
-!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE)                               &
-!$OMP PRIVATE(i, j, k)                                                         &
-!$OMP SHARED(bl_levels, ScmRow, ScmRowLen, TmpScm3d)
-  DO k = 1, bl_levels
-    DO j = 1, ScmRow
-      DO i = 1, ScmRowLen
-        TmpScm3d(i,j,k) = 0.0
-      END DO
-    END DO
-  END DO
-!$OMP END PARALLEL DO
-
-  DO k=1, bl_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = rhokm(i,j,k)
-      END DO ! i
-    END DO ! j
-  END DO ! k
-
-  CALL scmoutput(TmpScm3d,'momdif',                                            &
-       'Diffusivity of momentum','kg/(ms)',                                    &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k=1, bl_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = rhokh(i,j,k)
-      END DO ! i
-    END DO ! j
-  END DO ! k
-
-  CALL scmoutput(TmpScm3d,'htdiff',                                            &
-       'Diffusivity of heat','kg/(ms)',                                        &
-       t_avg,d_bl,default_streams,'',routinename)
-
-END IF ! scmdiag_bl / model_type
+        bl_levels, diff_fact, z_uv, z_tq, rhokm, prod, disp_coef, e_trb)
 
 DO k = tke_levels + 1, bl_levels
   DO j = tdims%j_start, tdims%j_end
@@ -656,12 +586,12 @@ END IF
 DO k = 2, tke_levels - 1
   DO j = tdims%j_start, tdims%j_end
     DO i = tdims%i_start, tdims%i_end
-      r_weight1 = 1.0 / (r_theta_levels(i,j,k) -                               &
-                                   r_theta_levels(i,j, k-1))
-      weight2 = (r_theta_levels(i,j,k) -                                       &
-                          r_rho_levels(i,j,k)) * r_weight1
-      weight3 = (r_rho_levels(i,j,k) -                                         &
-                          r_theta_levels(i,j,k-1)) * r_weight1
+      r_weight1 = 1.0 / (z_tq(i,j,k) -                                         &
+                                   z_tq(i,j, k-1))
+      weight2 = (z_tq(i,j,k) -                                                 &
+                          z_uv(i,j,k)) * r_weight1
+      weight3 = (z_uv(i,j,k) -                                                 &
+                          z_tq(i,j,k-1)) * r_weight1
       rhokh(i,j,k) =                                                           &
                           weight3 * rhokh_tq(i,j,k+1)                          &
                          +weight2 * rhokh_tq(i,j,k)
@@ -672,10 +602,10 @@ END DO
 k = tke_levels
 DO j = tdims%j_start, tdims%j_end
   DO i = tdims%i_start, tdims%i_end
-    r_weight1 = 1.0 / (r_theta_levels(i,j,k) -                                 &
-                                   r_theta_levels(i,j, k-1))
-    weight2 = (r_theta_levels(i,j,k) -                                         &
-                          r_rho_levels(i,j,k)) * r_weight1
+    r_weight1 = 1.0 / (z_tq(i,j,k) -                                           &
+                                   z_tq(i,j, k-1))
+    weight2 = (z_tq(i,j,k) -                                                   &
+                          z_uv(i,j,k)) * r_weight1
 
     rhokh(i, j, k) = weight2 * rhokh_tq(i, j, k)
   END DO
@@ -753,86 +683,6 @@ IF (BL_diag%l_elm) THEN
     END DO
   END DO
 END IF
-
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( l_scmdiags(scmdiag_bl) .AND.                                              &
-     model_type == mt_single_column ) THEN
-
-!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE)                               &
-!$OMP PRIVATE(i, j, k)                                                         &
-!$OMP SHARED(bl_levels, ScmRow, ScmRowLen, TmpScm3d)
-  DO k = 1, bl_levels
-    DO j = 1, ScmRow
-      DO i = 1, ScmRowLen
-        TmpScm3d(i,j,k) = 0.0
-      END DO
-    END DO
-  END DO
-!$OMP END PARALLEL DO
-
-  CALL scmoutput(h_pbl,'h_pbl',                                                &
-       'BL height by vertical profile of SL','m',                              &
-       t_avg,d_sl,default_streams,'',routinename)
-
-  DO k=1, tke_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = elm(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'elm',                                               &
-       'mixing length','m',                                                    &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k=1, tke_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm, k) = BL_diag%tke_shr_prod(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'tke_shr_prod',                                      &
-       'shear production of TKE','m2/s3',                                      &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k=1, tke_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = BL_diag%tke_boy_prod(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'tke_boy_prod',                                      &
-       'buoyancy production of TKE','m2/s3',                                   &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k=1, tke_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm, jScm, k) = BL_diag%tke_dissp(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'tke_dissp',                                         &
-       ' dissipation of TKE','m2/s3',                                          &
-       t_avg,d_bl,default_streams,'',routinename)
-
-END IF ! scmdiag_bl / model_type
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

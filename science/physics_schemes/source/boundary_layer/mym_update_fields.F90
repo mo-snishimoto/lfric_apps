@@ -22,7 +22,7 @@ IMPLICIT NONE
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'MYM_UPDATE_FIELDS_MOD'
 CONTAINS
 
-SUBROUTINE mym_update_fields(bl_levels,coef,dfm,prod,disp_coef,field)
+SUBROUTINE mym_update_fields(bl_levels,coef,z_uv,z_tq,dfm,prod,disp_coef,field)
 
 USE atm_fields_bounds_mod, ONLY: pdims, pdims_l, tdims, tdims_s
 USE mym_option_mod, ONLY: l_my_extra_level, tke_levels
@@ -44,6 +44,11 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  ! momentum
 
 REAL(KIND=real_umphys), INTENT(IN) ::                                          &
+   z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
+       bl_levels+1),                                                           &
+   z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+       bl_levels),                                                             &
+                 ! Z_TQ(*,K) is height of theta level k
    dfm(tdims_s%i_start:tdims_s%i_end,tdims_s%j_start:tdims_s%j_end,            &
        bl_levels),                                                             &
                  ! diffusion coefficients for momentum
@@ -81,7 +86,7 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='MYM_UPDATE_FIELDS'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Calculate the coefficients of tri-diagonal eqs. due to diffusion
-CALL mym_diff_matcoef(bl_levels, coef, dfm, aa, bb, cc)
+CALL mym_diff_matcoef(bl_levels, coef, z_uv, z_tq, dfm, aa, bb, cc)
 
 IF (l_my_extra_level) THEN
   k_start = 1

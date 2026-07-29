@@ -27,8 +27,7 @@ CONTAINS
 
 SUBROUTINE bdy_expl2_1a (                                                      &
 ! IN values defining vertical grid of model atmosphere :
- bl_levels,p_theta_levels,land_pts,land_index, cycleno,                        &
- r_theta_levels, r_rho_levels,                                                 &
+ bl_levels,p_theta_levels,land_pts,land_index,                                 &
 ! IN U, V and W momentum fields.
  u_p,v_p,u_0_px,v_0_px,                                                        &
 ! IN variables for TKE scheme
@@ -40,18 +39,18 @@ SUBROUTINE bdy_expl2_1a (                                                      &
 ! IN cloud/moisture data :
  q,qcf,qcl,t,qw,tl,                                                            &
 ! IN everything not covered so far :
- fb_surf,u_s,h_blend_orog,                                                     &
+ fb_surf,u_s,                                                                  &
  zh_prev,ho2r2_orog,sd_orog,                                                   &
-! 1 IN 3 INOUT for Smagorinsky
-  delta_smag, rneutml_sq, visc_m, visc_h,                                      &
-! SCM Diagnostics (dummy values in full UM) & stash diagnostics
- nSCMDpkgs,L_SCMDiags,BL_diag,                                                 &
+! 2 IN for Smagorinsky
+  delta_smag, shear,                                                           &
+! stash diagnostics
+ BL_diag,                                                                      &
 ! INOUT variables
  zh,ntml,ntpar,l_shallow,cumulus,fqw,ftl,rhokh,rhokm,                          &
 ! INOUT variables on TKE based turbulence schemes
  e_trb, tsq_trb, qsq_trb, cov_trb, zhpar_shcu,                                 &
 ! OUT new variables for message passing
- tau_fd_x, tau_fd_y, rhogamu, rhogamv,                                         &
+ tau_fd_x, tau_fd_y, visc_m, visc_h, rhogamu, rhogamv,                         &
 ! OUT Diagnostic not requiring STASH flags :
  shallowc,cu_over_orog,                                                        &
  bl_type_1,bl_type_2,bl_type_3,bl_type_4,bl_type_5,bl_type_6,bl_type_7,        &
@@ -62,30 +61,21 @@ SUBROUTINE bdy_expl2_1a (                                                      &
      )
 
 USE atm_fields_bounds_mod, ONLY: pdims, tdims, tdims_l,                        &
-    pdims_s, ScmRowLen,ScmRow
+    pdims_s
 USE bl_option_mod, ONLY: t_drain, h_scale, sg_orog_mixing, local_fa,           &
-      free_trop_layers, one_third, sg_shear,                                   &
+      free_trop_layers, smooth_to_bdys, one_third, sg_shear,                   &
       sg_shear_enh_lambda
 USE bl_diags_mod, ONLY: strnewbldiag
 USE cv_run_mod, ONLY: l_param_conv
 USE gen_phys_inputs_mod, ONLY: l_mr_physics
 USE jules_surface_mod, ONLY: formdrag, explicit_stress
-USE model_domain_mod, ONLY: model_type, mt_single_column
 USE mym_option_mod, ONLY:                                                      &
    bdy_tke, deardorff, mymodel25, mymodel3, tke_levels,                        &
-   l_local_above_tkelvs, l_print_max_tke, l_3dtke
-USE mym_const_mod, ONLY: e_trb_max
-USE um_parcore, ONLY: nproc
+   l_local_above_tkelvs, l_3dtke
 USE planet_constants_mod, ONLY: cp, g, vkman
-USE s_scmop_mod,   ONLY: default_streams,                                      &
-                         t_avg, d_bl, d_sl, scmdiag_bl
-USE scmoutput_mod, ONLY: scmoutput
 USE turb_diff_mod, ONLY:                                                       &
     l_subfilter_vert, l_subfilter_horiz, mix_factor,                           &
     turb_startlev_vert, turb_endlev_vert
-USE umPrintMgr, ONLY:                                                          &
-    umPrint,                                                                   &
-    umMessage
 USE water_constants_mod, ONLY: lc
 
 USE parkind1, ONLY: jprb, jpim
@@ -103,9 +93,8 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) ::                                                         &
  land_pts,                                                                     &
                              ! No.of land points in whole grid.
- bl_levels,                                                                    &
+ bl_levels
                              ! IN Max. no. of "boundary" levels
- cycleno                     ! Iteration number (EG outer loop)
 
 !     Declaration of new BL diagnostics.
 TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
@@ -113,11 +102,6 @@ TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
 REAL(KIND=real_umphys), INTENT(IN) ::                                          &
  p_theta_levels(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,           &
                 0:bl_levels+1),                                                &
- r_theta_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,   &
-                0:bl_levels),                                                  &
- r_rho_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,     &
-              bl_levels),                                                      &
-                                 ! IN height of rho and theta levels
  rho_mix(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
          bl_levels+1),                                                         &
                                  ! IN density on UV (ie. rho) levels;
@@ -186,9 +170,6 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
  u_s(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                     &
                                   ! IN Surface friction velocity
                                   !    (m/s)
- h_blend_orog(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
-                                  ! IN Blending height used as part
-                                  ! of effective roughness scheme
  zh_prev(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
                                   ! IN boundary layer height from
                                   !    previous timestep
@@ -198,15 +179,10 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
  sil_orog_land(land_pts),                                                      &
                                ! IN Silhouette area of unresolved
                                ! orography per unit horizontal area
- delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
+ delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),              &
                                  ! IN delta_x used by Smagorinsky
-
-! Additional variables for SCM diagnostics which are dummy in full UM
-INTEGER, INTENT(IN) ::                                                         &
- nSCMDpkgs             ! No of SCM diagnostics packages
-
-LOGICAL, INTENT(IN) ::                                                         &
- L_SCMDiags(nSCMDpkgs) ! Logicals for SCM diagnostics packages
+ shear(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels)
+                                 ! IN 3D Wind shear parameter
 
 REAL(KIND=real_umphys), INTENT(IN) ::                                          &
  u_0_px(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end),          &
@@ -268,14 +244,8 @@ REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
 
 REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
  rhokm(pdims_s%i_start:pdims_s%i_end,                                          &
-       pdims_s%j_start:pdims_s%j_end ,bl_levels),                              &
+       pdims_s%j_start:pdims_s%j_end ,bl_levels)
                               ! Exchange coefficients for momentum on P-grid
- rneutml_sq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),    &
-                              ! Square of the neutral mixing length scale
- visc_m(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels),&
-                              ! Diffusion coefficient for momentum
- visc_h(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels)
-                              ! Diffusion coefficient for heat and moisture
 ! INOUT but not used: variables used in the 1A version (TKE-based schemes)
 REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
   e_trb(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
@@ -306,6 +276,10 @@ INTEGER, INTENT(IN OUT) ::                                                     &
 !  Outputs :-
 !  (a) Calculated anyway (use STASH space from higher level) :-
 REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+ visc_m(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels),&
+                              ! Diffusion coefficient for momentum
+ visc_h(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels),&
+                              ! Diffusion coefficient for heat and moisture
  rhogamu(pdims_s%i_start:pdims_s%i_end,                                        &
          pdims_s%j_start:pdims_s%j_end,2:bl_levels),                           &
                   ! Counter gradient terms for u
@@ -401,10 +375,6 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
 !-----------------------------------------------------------------------
 !   Symbolic constants (parameters) reqd in top-level routine :-
 
-REAL(KIND=real_umphys) :: TmpScm3d(ScmRowLen,ScmRow,bl_levels)
-                                             ! Temporary for SCM output
-REAL(KIND=real_umphys) :: sl(ScmRowLen,ScmRow,bl_levels)       ! Static energy
-
 ! Parameters also passed to EX_COEF
 ! Layer interface K_LOG_LAYR-1/2 is the highest which requires log
 ! profile correction factors to the vertical finite differences.
@@ -464,7 +434,9 @@ REAL(KIND=real_umphys) ::                                                      &
  sigma_h(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
                               ! Standard deviation of subgrid
                               ! orography (m) [= 2root2 * ho2r2_orog]
- p_half(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels)
+ p_half(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),        &
+ rneutml_sq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
+                              ! Square of the neutral mixing length scale
 
 REAL(KIND=real_umphys), ALLOCATABLE :: visc_h_rho (:,:,:)
                                                        ! visc_h on rho levels
@@ -475,6 +447,10 @@ REAL(KIND=real_umphys) ::                                                      &
                               !  boundary layer (metres) as
                               !  determined from the local
                               !  Richardson number profile.
+   zhnl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                  &
+                              ! non-local PBL depth
+   zdsc_base(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),             &
+                              ! Height of base of K_top in DSC
    dtldz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
       2:bl_levels),                                                            &
                               ! TL+gz/cp gradient between
@@ -547,33 +523,12 @@ REAL(KIND=real_umphys) ::                                                      &
    grcp      ! G/CP
 
 INTEGER  ::                                                                    &
-   i,j,iScm,jScm,                                                              &
+   i,j,                                                                        &
                      ! LOCAL Loop counter (horizontal field index).
    k,ient,                                                                     &
                      ! LOCAL Loop counter (vertical level index).
    l
 ! LOCAL Loop counter for land points
-
-! for print max
-INTEGER :: max_indices(3)
-INTEGER :: istat_gc        ! status code of gc_rmax
-INTEGER :: mype            ! my node ID
-INTEGER :: ikind           ! loop counter for e_trb, tsq, qsq, cov
-INTEGER :: e_kind          ! end number of ikind
-INTEGER :: asize           ! work variable
-CHARACTER(LEN=5) :: varname(4)
-                           ! variable names
-INTEGER, ALLOCATABLE :: indx_pe(:, :)
-                           ! indices of the maximum points
-                           ! in my processor
-INTEGER, ALLOCATABLE :: sumi(:, :)
-                           ! indices and pe number
-REAL(KIND=real_umphys), ALLOCATABLE :: max_pe(:)
-                           ! maximum values in my processor
-REAL(KIND=real_umphys), ALLOCATABLE :: max_real(:)
-                           ! maximum values in the whole domain
-REAL(KIND=real_umphys), ALLOCATABLE :: abs_cov(:, :, :)
-                           ! absolute values of cov_trb
 
 CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'BDY_EXPL2_1A'
 
@@ -676,6 +631,8 @@ DO j = pdims%j_start, pdims%j_end
     ntdsc(i,j)   = 0
     nbdsc(i,j)   = 0
     zhsc(i,j)    = 0.0
+    zhnl(i,j)    = 0.0
+    zdsc_base(i,j) = 0.0
         ! entrainment variables for non-local tracer mixing
     kent(i,j) = 2
     kent_dsc(i,j) = 2
@@ -699,7 +656,6 @@ IF (l_subfilter_vert) THEN
       l_shallow(i,j) = .FALSE.
       ntpar(i,j)   = 0
       ntml_nl(i,j) = -1    ! to ensure correct diagnostics
-      zh(i,j)      = 0.0
     END DO
   END DO
 END IF
@@ -718,48 +674,15 @@ DO k = 2, bl_levels
   END DO
 END DO
 
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( l_scmdiags(scmdiag_bl) .AND.                                              &
-     model_type == mt_single_column ) THEN
-
-  DO k=1, bl_levels
-    DO j=pdims%j_start, pdims%j_end
-      jScm = j - pdims%j_start + 1
-      DO i=pdims%i_start, pdims%i_end
-        iScm = i - pdims%i_start + 1
-        sl(iScm,jScm,k) = tl(i,j,k) + grcp*z_tq(i,j,k)
-      END DO ! i
-    END DO ! j
-  END DO ! k
-
-  !       Output SL
-
-  CALL scmoutput(sl,'SL',                                                      &
-       'Liquid/frozen water static energy (IN)','K',                           &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  !       Output QW
-
-  CALL scmoutput(qw,'qw',                                                      &
-       'Total water content (IN)','kg/kg',                                     &
-       t_avg,d_bl,default_streams,'',routinename)
-
-END IF ! scmdiag_bl / model_type
-
 
 ! Calculate `buoyancy' gradient, DBDZ, on theta-levels
 ! NOTE: DBDZ(K) is on theta-level K-1
 DO k = 3, bl_levels
   DO j = pdims%j_start, pdims%j_end
     DO i = pdims%i_start, pdims%i_end
-      r_weight1 = 1.0 / (r_rho_levels(i,j,k) -                                 &
-                                        r_rho_levels(i,j,k-1))
-      weight2 = r_theta_levels(i,j,k-1)-                                       &
-                          r_rho_levels(i,j,k-1)
-      weight3 = r_rho_levels(i,j,k) -                                          &
-                          r_theta_levels(i,j,k-1)
+      r_weight1 = 1.0 / (z_uv(i,j,k) - z_uv(i,j,k-1))
+      weight2 = z_tq(i,j,k-1)- z_uv(i,j,k-1)
+      weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
       dtldzm(i, j, k) = (weight2 * dtldz(i,j,k)                                &
                        + weight3 * dtldz(i,j,k-1)) * r_weight1
       dqwdzm(i, j, k) = (weight2 * dqwdz(i,j,k)                                &
@@ -807,12 +730,11 @@ IF ((.NOT. l_subfilter_vert) .AND. (.NOT. l_3dtke) ) THEN
   END DO
 
 ELSE
-  ! On entry, visc_m is 3D shear(k) on theta-level(k)
 
   DO k = 2, bl_levels
     DO j = pdims%j_start, pdims%j_end
       DO i = pdims%i_start, pdims%i_end
-        dvdzm(i,j,k) = MAX( 1.0e-12 , visc_m(i,j,k-1) )
+        dvdzm(i,j,k) = MAX( 1.0e-12 , shear(i,j,k-1) )
       END DO
     END DO
   END DO
@@ -886,71 +808,6 @@ IF (sg_orog_mixing == sg_shear .OR.                                            &
 
 END IF      ! sg_orog_mixing
 
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( l_scmdiags(scmdiag_bl) .AND.                                              &
-     model_type == mt_single_column ) THEN
-
-  TmpScm3d(:,:,1) = 0.0
-
-  DO k=2, bl_levels
-    DO j=pdims%j_start, pdims%j_end
-      jScm = j - pdims%j_start + 1
-      DO i=pdims%i_start, pdims%i_end
-        iScm = i - pdims%i_start + 1
-        TmpScm3d(iScm, jScm, k) = dtldz(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'DTLDZ',                                             &
-       'Vertical gradient of TL', 'K/m',                                       &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k=2, bl_levels
-    DO j=pdims%j_start, pdims%j_end
-      jScm = j - pdims%j_start + 1
-      DO i=pdims%i_start, pdims%i_end
-        iScm = i - pdims%i_start + 1
-        TmpScm3d(iScm, jScm, k) = dqwdz(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'DQWDZ',                                             &
-       'Vertical gradient of QW','1/m',                                        &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k=2, bl_levels
-    DO j=pdims%j_start, pdims%j_end
-      jScm = j - pdims%j_start + 1
-      DO i=pdims%i_start, pdims%i_end
-        iScm = i - pdims%i_start + 1
-        TmpScm3d(iScm, jScm, k) = dbdz(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'DBDZ',                                              &
-       'Vertical gradient of buoyancy','1/ms2',                                &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k=2, bl_levels
-    DO j=pdims%j_start, pdims%j_end
-      jScm = j - pdims%j_start + 1
-      DO i=pdims%i_start, pdims%i_end
-        iScm = i - pdims%i_start + 1
-        TmpScm3d(iScm, jScm, k) = dvdzm(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'DVDZM',                                             &
-       'Vertical gradient of wind velocity','1/s',                             &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  CALL scmoutput(fb_surf,'FB_SURF',                                            &
-       'buoyancy flux at the surface','m2/s3',                                 &
-       t_avg,d_sl,default_streams,'',routinename)
-
-END IF ! scmdiag_bl / model_type
 
 !------------------------------------------------------------------
 !  call main subroutines
@@ -958,25 +815,26 @@ END IF ! scmdiag_bl / model_type
 IF (bdy_tke == mymodel25 .OR. bdy_tke == mymodel3) THEN
   CALL mym_ctl(                                                                &
   !in levels/switches
-            bl_levels, bdy_tke, nSCMDpkgs,L_SCMDiags,                          &
-            BL_diag, cycleno,                                                  &
+            bl_levels, bdy_tke,                                                &
+            BL_diag,                                                           &
   !in fields
             z_uv,z_tq, u_p, v_p, qw, tl, t, q, qcl, qcf, bq_gb, bt_gb,         &
             rho_mix, rho_wet_tq, fqw, ftl,                                     &
-            dtldzm, dqwdzm, dudz, dvdz, dbdz, dvdzm,                           &
+            dtldzm, dqwdzm, dudz, dvdz, dbdz, dvdzm, delta_smag,               &
             p_theta_levels, p_half, u_s, fb_surf, pstar,                       &
   ! inout
             e_trb, tsq_trb, qsq_trb, cov_trb, rhokm, rhokh, zhpar_shcu,        &
   ! out
-            rhogamu, rhogamv, rhogamt, rhogamq)
+            visc_m, visc_h, rhogamu, rhogamv, rhogamt, rhogamq)
 ELSE IF (bdy_tke == deardorff) THEN
   CALL ddf_ctl(                                                                &
   ! IN levels/switches
-          bl_levels, nSCMDpkgs, L_SCMDiags, BL_diag, cycleno,                  &
+          bl_levels, BL_diag,                                                  &
   ! IN fields
           z_uv,z_tq, u_p, v_p, qw, tl, t, q, qcl,                              &
           qcf, p_theta_levels, p_half,bq_gb, bt_gb, rho_mix, rho_wet_tq,       &
-          dtldzm, dqwdzm, dudz, dvdz, dbdz, dvdzm, u_s, fb_surf, pstar,        &
+          dtldzm, dqwdzm, dudz, dvdz, dbdz, dvdzm, delta_smag,                 &
+          u_s, fb_surf, pstar,                                                 &
   ! INOUT fields
           e_trb, rhokm, rhokh, zhpar_shcu)
   DO k = 2, bl_levels
@@ -1047,11 +905,11 @@ IF (l_subfilter_horiz .OR. l_subfilter_vert .OR.                               &
   !-----------------------------------------------------------------------
   CALL ex_coef (                                                               &
   ! IN levels/logicals
-       bl_levels,k_log_layr,nSCMDpkgs,L_SCMDiags,BL_diag,                      &
+       bl_levels,k_log_layr,BL_diag,                                           &
   ! IN fields
-      sigma_h,flandg,dbdz,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,            &
-      h_blend_orog,zhpar_shcu,ntpar,ntml_nl,ntdsc,nbdsc,u_p,v_p,u_s,           &
-      fb_surf,qw,tl,l_shallow,rmlmax2, rneutml_sq, delta_smag,                 &
+      sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhnl,zhpar_shcu, &
+      zhsc,zdsc_base,ntpar,ntml_nl,ntdsc,nbdsc,l_shallow,rmlmax2,rneutml_sq,   &
+      delta_smag,                                                              &
   ! IN/OUT fields
       cumulus,weight_1dbl,                                                     &
   ! OUT fields
@@ -1068,12 +926,9 @@ IF (l_subfilter_horiz .OR. l_subfilter_vert .OR.                               &
         DO i = pdims%i_start, pdims%i_end
           rhokm(i, j, k) = rhokm_ri(i, j, k)
 
-          weight1 = r_theta_levels(i,j,k) -                                    &
-                              r_theta_levels(i,j, k-1)
-          weight2 = r_theta_levels(i,j,k) -                                    &
-                              r_rho_levels(i,j,k)
-          weight3 = r_rho_levels(i,j,k) -                                      &
-                              r_theta_levels(i,j,k-1)
+          weight1 = z_tq(i,j,k) - z_tq(i,j, k-1)
+          weight2 = z_tq(i,j,k) - z_uv(i,j,k)
+          weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
           IF ( k  ==  bl_levels ) THEN
               ! assume RHOKH_uv(BL_LEVELS+1) is zero
             rhokh(i,j,k) = ( weight2/weight1 ) * rhokh_th_ri(i,j,k)
@@ -1084,7 +939,8 @@ IF (l_subfilter_horiz .OR. l_subfilter_vert .OR.                               &
                                       rhokh_th_ri(i,j,k)
           END IF
 
-          IF (local_fa /= free_trop_layers) THEN
+          IF ((local_fa /= free_trop_layers) .and. &
+              (local_fa /= smooth_to_bdys)) THEN
             !--------------------------------------------------------
             !  Code moved from EX_COEF to avoid interpolation:
             !  Include mixing length, ELH, in RHOKH.
@@ -1111,8 +967,8 @@ IF (l_subfilter_horiz .OR. l_subfilter_vert .OR.                               &
       DO k = tke_levels, bl_levels
         DO j = pdims%j_start, pdims%j_end
           DO i = pdims%i_start, pdims%i_end
-            visc_m(i,j,k) = visc_m(i,j,k)*rneutml_sq(i,j,k)
-            visc_h(i,j,k) = visc_h(i,j,k)*rneutml_sq(i,j,k)
+            visc_m(i,j,k) = shear(i,j,k)*rneutml_sq(i,j,k)
+            visc_h(i,j,k) = shear(i,j,k)*rneutml_sq(i,j,k)
           END DO
         END DO
       END DO
@@ -1133,8 +989,8 @@ IF (l_subfilter_horiz .OR. l_subfilter_vert .OR.                               &
       DO k = 1, bl_levels
         DO j = pdims%j_start, pdims%j_end
           DO i = pdims%i_start, pdims%i_end
-            visc_m(i,j,k) = visc_m(i,j,k)*rneutml_sq(i,j,k)
-            visc_h(i,j,k) = visc_h(i,j,k)*rneutml_sq(i,j,k)
+            visc_m(i,j,k) = shear(i,j,k)*rneutml_sq(i,j,k)
+            visc_h(i,j,k) = shear(i,j,k)*rneutml_sq(i,j,k)
           END DO
         END DO
       END DO
@@ -1161,9 +1017,9 @@ IF (l_subfilter_horiz .OR. l_subfilter_vert .OR.                               &
       DO k = 2, bl_levels
         DO j = pdims%j_start, pdims%j_end
           DO i = pdims%i_start, pdims%i_end
-            weight1 = r_theta_levels(i,j,k) - r_theta_levels(i,j, k-1)
-            weight2 = r_theta_levels(i,j,k) - r_rho_levels(i,j,k)
-            weight3 = r_rho_levels(i,j,k) - r_theta_levels(i,j,k-1)
+            weight1 = z_tq(i,j,k) - z_tq(i,j, k-1)
+            weight2 = z_tq(i,j,k) - z_uv(i,j,k)
+            weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
             IF ( k  ==  bl_levels ) THEN
               ! assume visc_h(bl_levels) is zero
               ! (Ri and thence f_h not defined)
@@ -1276,39 +1132,9 @@ END DO
 ! Calculation of explicit fluxes of T,Q
 !-----------------------------------------------------------------------
 CALL mym_ex_flux_tq(                                                           &
-      bl_levels, nSCMDpkgs, L_SCMDiags,                                        &
+      bl_levels,                                                               &
       tl, qw, rhokh, rhogamt, rhogamq, rdz_charney_grid,                       &
       ftl, fqw)
-
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( l_scmdiags(scmdiag_bl) .AND.                                              &
-     model_type == mt_single_column ) THEN
-
-  CALL scmoutput(u_s,'ustar',                                                  &
-       'Explicit surface friction velocity','m/s',                             &
-       t_avg,d_sl,default_streams,'',routinename)
-
-  CALL scmoutput(e_trb,'e_trb',                                                &
-       'Turbulent Kinetic Energy','J/kg',                                      &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  IF (bdy_tke == mymodel25 .OR. bdy_tke == mymodel3) THEN
-    CALL scmoutput(tsq_trb,'tsq_trb',                                          &
-         'Self covariance of thetal','K2',                                     &
-         t_avg,d_bl,default_streams,'',routinename)
-
-    CALL scmoutput(qsq_trb,'qsq_trb',                                          &
-         'Self covariance of qw','kg2/kg2',                                    &
-         t_avg,d_bl,default_streams,'',routinename)
-
-    CALL scmoutput(cov_trb,'cov_trb',                                          &
-         'Correlation of thetal and qw','K2 kg2/kg2',                          &
-         t_avg,d_bl,default_streams,'',routinename)
-  END IF
-
-END IF ! scmdiag_bl / model_type
 
 
 IF (BL_diag%l_rhogamu) THEN
@@ -1444,151 +1270,6 @@ DO j = pdims%j_start, pdims%j_end
     END IF
   END DO
 END DO
-
-! Print the maximum values of the prognostic variables
-IF (l_print_max_tke) THEN
-  IF (bdy_tke == mymodel25 .OR. bdy_tke == mymodel3) THEN
-    ! for e_trb, tsq, qsq and cov
-    e_kind = 4
-  ELSE IF (bdy_tke == deardorff) THEN
-    ! for e_trb
-    e_kind = 1
-  END IF
-
-  ALLOCATE(max_real(e_kind))
-  ALLOCATE(indx_pe(3, e_kind))
-  ALLOCATE(max_pe(e_kind))
-  ALLOCATE(sumi(4, e_kind))
-
-  ! obtain the maximum values on each processor
-  DO ikind = 1, e_kind
-    IF (ikind == 1) THEN
-      max_indices = MAXLOC(                                                    &
-                        e_trb(tdims%i_start:tdims%i_end,                       &
-                              tdims%j_start:tdims%j_end,1:tke_levels))
-      max_real(ikind) = e_trb(                                                 &
-                      max_indices(1), max_indices(2), max_indices(3))
-    ELSE IF (ikind == 2) THEN
-      max_indices = MAXLOC(                                                    &
-                      tsq_trb(tdims%i_start:tdims%i_end,                       &
-                              tdims%j_start:tdims%j_end,1:tke_levels))
-      max_real(ikind) = tsq_trb(                                               &
-                      max_indices(1), max_indices(2), max_indices(3))
-    ELSE IF (ikind == 3) THEN
-      max_indices = MAXLOC(                                                    &
-                      qsq_trb(tdims%i_start:tdims%i_end,                       &
-                              tdims%j_start:tdims%j_end,1:tke_levels))
-      max_real(ikind) = qsq_trb(                                               &
-                      max_indices(1), max_indices(2), max_indices(3))
-    ELSE IF (ikind == 4) THEN
-      ALLOCATE(abs_cov(tdims%i_start:tdims%i_end,                              &
-                       tdims%j_start:tdims%j_end, tke_levels))
-      DO k = 1, tke_levels
-        DO j = pdims%j_start, pdims%j_end
-          DO i = pdims%i_start, pdims%i_end
-            abs_cov(i, j, k) = ABS(cov_trb(i, j, k))
-          END DO
-        END DO
-      END DO
-      max_indices = MAXLOC(                                                    &
-                      abs_cov(tdims%i_start:tdims%i_end,                       &
-                              tdims%j_start:tdims%j_end,1:tke_levels))
-      max_real(ikind) = abs_cov(                                               &
-                       max_indices(1), max_indices(2), max_indices(3))
-      DEALLOCATE(abs_cov)
-    END IF
-    indx_pe(1, ikind) = max_indices(1)
-    indx_pe(2, ikind) = max_indices(2)
-    indx_pe(3, ikind) = max_indices(3)
-    max_pe(ikind) = max_real(ikind)
-  END DO
-
-  SELECT CASE (model_type)
-
-  CASE (mt_single_column)
-    mype = 0
-
-  CASE DEFAULT
-    mype = parcore_mype
-    ! To avoid the same maximum value at more than two points.
-    ! The points in the processor with the largest mype would be
-    ! selected as the maximum point
-    IF (max_real(1) >= e_trb_max) THEN
-      max_real(1) = max_real(1) + mype * e_trb_max * 1.0e-5
-      max_pe(1) = max_real(1)
-    END IF
-
-    ! the maximum values in the whole domain
-    CALL gc_rmax(e_kind, nproc, istat_gc, max_real)
-
-  END SELECT ! model_type
-
-  DO ikind = 1, e_kind
-    IF (max_pe(ikind) >= max_real(ikind)) THEN
-      ! the maximum is on my pe.
-      ! set indices, pe number
-      sumi(1, ikind) = indx_pe(1, ikind)
-      sumi(2, ikind) = indx_pe(2, ikind)
-      sumi(3, ikind) = indx_pe(3, ikind)
-      sumi(4, ikind) = mype
-    ELSE
-      sumi(1, ikind) = 0
-      sumi(2, ikind) = 0
-      sumi(3, ikind) = 0
-      sumi(4, ikind) = 0
-    END IF
-  END DO
-
-  IF (model_type /= mt_single_column) THEN
-    ! obtain indices and pe number of the maximum points
-    asize = e_kind * 4
-    CALL gc_isum(asize, nproc, istat_gc, sumi)
-
-    ! Back to the original value (i.e. the maximum limit)
-    IF (max_real(1) > e_trb_max) THEN
-      max_real(1) = e_trb_max
-    END IF
-  END IF ! model_type
-
-  IF (mype == 0) THEN
-    varname(1) = 'e_trb'
-    varname(2) = 'tsq  '
-    varname(3) = 'qsq  '
-    varname(4) = 'cov  '
-
-    WRITE(umMessage, '(A)')                                                    &
-       ' ***** Maximum turbulent variables at this timestep ***** '
-    CALL umPrint(umMessage,src='bdy_expl2_1a')
-    DO ikind = 1, e_kind
-
-      SELECT CASE (model_type)
-
-      CASE (mt_single_column)
-        ! only with a level number
-        WRITE(umMessage, '(A, A, 1X, E12.5, 1X, A, I4)')                       &
-             varname(ikind), ' max:', max_real(ikind), 'at level',             &
-             sumi(3, ikind)
-        CALL umPrint(umMessage,src='bdy_expl2_1a')
-
-      CASE DEFAULT
-        ! with indices on the local processor and the pe number
-        WRITE(umMessage,                                                       &
-             '(1X, A, A, 1X, E12.5, 1X, A, I4, 1X, I4, 1X, I4, A, I4)')        &
-             varname(ikind), ' max:', max_real(ikind), 'at (',                 &
-             sumi(1, ikind), sumi(2, ikind), sumi(3, ikind),                   &
-             ') on pe ', sumi(4, ikind)
-        CALL umPrint(umMessage,src='bdy_expl2_1a')
-
-      END SELECT  ! model_type
-
-    END DO
-  END IF
-
-  DEALLOCATE(sumi)
-  DEALLOCATE(max_pe)
-  DEALLOCATE(indx_pe)
-  DEALLOCATE(max_real)
-END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

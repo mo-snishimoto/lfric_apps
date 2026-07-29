@@ -45,19 +45,18 @@ CONTAINS
 
 SUBROUTINE mym_turbulence(                                                     &
 ! IN levels/switches
-      bl_levels, levflag, nSCMDpkgs,L_SCMDiags, BL_diag,                       &
+      bl_levels, levflag, BL_diag,                                             &
 ! IN fields
       z_uv, z_tq,                                                              &
       vq, vt, gtr, fqw, ftl, wb_ng,                                            &
-      dbdz, dtldz, dqwdz, dvdzm, dudz, dvdz,                                   &
+      dbdz, dtldz, dqwdz, dvdzm, dudz, dvdz, delta_smag,                       &
       r_mosurf, u_s, fb_surf, pmz, phh,                                        &
 ! INOUT fields
       qke, tsq, qsq, cov, dfm, dfh,                                            &
 ! OUT fields
       dfu_cg, dfv_cg, dft_cg, dfq_cg)
 
-USE atm_fields_bounds_mod, ONLY: tdims, pdims, tdims_l, tdims_s,               &
-                                 ScmRowLen, ScmRow
+USE atm_fields_bounds_mod, ONLY: tdims, pdims, tdims_l, tdims_s
 USE bl_diags_mod, ONLY: strnewbldiag
 USE conversions_mod, ONLY: pi
 USE mym_const_mod, ONLY: e1c,e2c,e3c,e4c,e5c,a1,a2,c1,b2,qke_max,              &
@@ -69,9 +68,6 @@ USE mym_option_mod, ONLY:                                                      &
       l_my_lowest_pd_surf_tqc
 
 USE model_domain_mod, ONLY: model_type, mt_single_column
-USE s_scmop_mod,      ONLY: default_streams,                                   &
-                            t_avg, d_bl, scmdiag_bl
-USE scmoutput_mod,    ONLY: scmoutput
 
 USE parkind1, ONLY: jprb, jpim
 USE planet_constants_mod, ONLY: vkman
@@ -149,6 +145,8 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
         2:bl_levels),                                                          &
                  ! Gradient of v at theta levels.
                  !(:,:,K) repserents the value on theta level K-1
+   delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
+                 ! IN delta_x used by Smagorinsky
    r_mosurf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),              &
                  ! reciprocal of Monin-Obukhov length
    u_s(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                   &
@@ -159,13 +157,6 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                  ! gradient function for momentum at surface
    phh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
                  ! gradient function for scalars at surface
-
-! Additional variables for SCM diagnostics which are dummy in full UM
-INTEGER, INTENT(IN) ::                                                         &
-   nSCMDpkgs             ! No of SCM diagnostics packages
-
-LOGICAL, INTENT(IN) ::                                                         &
-   L_SCMDiags(nSCMDpkgs) ! Logicals for SCM diagnostics packages
 
 ! Intent INOUT Variables
 REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
@@ -217,7 +208,7 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
 ! Local variables
 ! Scalar
 INTEGER ::                                                                     &
-   i, j, k, k_start, k_start_cor, iScm, jScm
+   i, j, k, k_start, k_start_cor
                  ! Loop indexes
 
 REAL(KIND=real_umphys) ::                                                      &
@@ -445,8 +436,6 @@ INTEGER, PARAMETER ::                                                          &
       ! mode to integrate covariances
 
 CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'MYM_TURBULENCE'
-! work variable for scmoutput
-REAL(KIND=real_umphys) :: TmpScm3d(ScmRowLen, ScmRow, bl_levels)
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -464,7 +453,7 @@ CALL mym_level2(                                                               &
 
 CALL mym_length(                                                               &
       tdims%i_end,tdims%j_end,tdims_l%halo_i,tdims_l%halo_j,bl_levels,         &
-      qke, z_uv, z_tq, dbdz, r_mosurf, fb_surf, qkw, el)
+      qke, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, qkw, el)
 
 DO k = 2, tke_levels
   DO j = tdims%j_start, tdims%j_end
@@ -890,7 +879,7 @@ IF (BL_diag%l_tke_boy_prod) THEN
   END DO
 END IF
 
-IF (BL_diag%l_tke_boy_prod) THEN
+IF (BL_diag%l_tke_dissp) THEN
   DO k = k_start, tke_levels
     DO j = tdims%j_start, tdims%j_end
       DO i = tdims%i_start, tdims%i_end
@@ -909,6 +898,7 @@ IF (levflag == 3) THEN
     ! IN levels
                 bl_levels,                                                     &
     ! IN fields
+                z_uv, z_tq,                                                    &
                 qkw, el, dfm, pdt_tsq, pdt_cov, pdt,                           &
                 pdq_qsq, pdq_cov, pdq, pdc_cov, pdc_tsq, pdc_qsq, pdc,         &
     ! INOUT fields
@@ -984,13 +974,13 @@ IF (levflag == 3) THEN
       END DO
     END IF
     CALL mym_update_fields(                                                    &
-          bl_levels, coef_trbvar_diff,dfm, rp_tsq, bp_tsq,tsq)
+          bl_levels, coef_trbvar_diff, z_uv, z_tq, dfm, rp_tsq, bp_tsq,tsq)
 
     CALL mym_update_fields(                                                    &
-          bl_levels, coef_trbvar_diff,dfm, rp_qsq, bp_qsq,qsq)
+          bl_levels, coef_trbvar_diff, z_uv, z_tq, dfm, rp_qsq, bp_qsq,qsq)
 
     CALL mym_update_fields(                                                    &
-          bl_levels, coef_trbvar_diff,dfm, rp_cov, bp_cov,cov)
+          bl_levels, coef_trbvar_diff, z_uv, z_tq, dfm, rp_cov, bp_cov,cov)
 
     DEALLOCATE(rp_cov)
     DEALLOCATE(bp_cov)
@@ -1076,7 +1066,7 @@ IF (levflag >= 2) THEN
   END DO
 
   CALL mym_update_fields(                                                      &
-        bl_levels, coef_trbvar_diff_tke,dfm, rp, bp, qke)
+        bl_levels, coef_trbvar_diff_tke, z_uv, z_tq, dfm, rp, bp, qke)
 ELSE
    ! level 2
    ! diagnose qke
@@ -1117,228 +1107,6 @@ DO k = tke_levels + 1, bl_levels
     END DO
   END DO
 END DO
-
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( L_SCMDiags(scmdiag_bl) .AND.                                              &
-     (model_type == mt_single_column) ) THEN
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      sm(i,j,1) = 0.0
-      sh(i,j,1) = 0.0
-      gamt_factor(i,j,1) = 1.0
-      gamq_factor(i,j,1) = 1.0
-      pdc_factor(i,j,1) = 1.0
-    END DO
-  END DO
-
-  !   Note that each diagnostics here has only "tke_levels" levels.
-  !   It is necessary to copy them to an array which has "bl_levels"
-  TmpScm3d(:, :, :) = 0.0
-
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = sm(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'sm',                                                &
-       'non-dim diffusion coefficient for momentum', ' ',                      &
-       t_avg, d_bl, default_streams, '',routinename)
-
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = sh(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'sh',                                                &
-       'non-dim diffusion coefficient for heat', ' ',                          &
-       t_avg, d_bl, default_streams, '',routinename)
-
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = dfm(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'momdif',                                            &
-       'Diffusivity of momentum','kg/(ms)',                                    &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = dfh(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'htdiff',                                            &
-       'Diffusivity of heat','kg/(ms)',                                        &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = el(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'elm',                                               &
-       'mixing length','m',                                                    &
-       t_avg, d_bl, default_streams, '',routinename)
-
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = BL_diag%tke_shr_prod(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'tke_shr_prod',                                      &
-       'shear production of TKE','m2/s3',                                      &
-       t_avg, d_bl, default_streams, '',routinename)
-
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = BL_diag%tke_boy_prod(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'tke_boy_prod',                                      &
-       'buoyancy production of TKE','m2/s3',                                   &
-       t_avg, d_bl, default_streams, '',routinename)
-
-  DO k = 1, tke_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = BL_diag%tke_dissp(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'tke_dissp',                                         &
-       ' dissipation of TKE','m2/s3',                                          &
-       t_avg, d_bl, default_streams, '',routinename)
-
-  IF (levflag == 3) THEN
-    DO k = 1, tke_levels
-      DO j = tdims%j_start, tdims%j_end
-        jScm = j - tdims%j_start + 1
-        DO i = tdims%i_start, tdims%i_end
-          iScm = i - tdims%i_start + 1
-          TmpScm3d(iScm,jScm,k) = gamt_factor(i, j, k)
-        END DO
-      END DO
-    END DO
-
-    CALL scmoutput(TmpScm3d,'gamt_factor',                                     &
-         'stability factor for gamt',' ',                                      &
-         t_avg, d_bl, default_streams, '',routinename)
-
-    DO k = 1, tke_levels
-      DO j = tdims%j_start, tdims%j_end
-        jScm = j - tdims%j_start + 1
-        DO i = tdims%i_start, tdims%i_end
-          iScm = i - tdims%i_start + 1
-          TmpScm3d(iScm,jScm,k) = gamq_factor(i, j, k)
-        END DO
-      END DO
-    END DO
-
-    CALL scmoutput(TmpScm3d,'gamq_factor',                                     &
-         'stability factor for gamt',' ',                                      &
-         t_avg, d_bl, default_streams, '',routinename)
-
-    DO k = 1, tke_levels
-      DO j = tdims%j_start, tdims%j_end
-        jScm = j - tdims%j_start + 1
-        DO i = tdims%i_start, tdims%i_end
-          iScm = i - tdims%i_start + 1
-          TmpScm3d(iScm,jScm,k) = pdc_factor(i, j, k)
-        END DO
-      END DO
-    END DO
-
-    CALL scmoutput(TmpScm3d,'pdc_factor',                                      &
-         'stability factor for pdc',' ',                                       &
-         t_avg, d_bl, default_streams, '',routinename)
-  END IF ! if levflag == 3
-
-  TmpScm3d(:,:,1) = 0.0
-  DO k = 2, bl_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = vt(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'vt',                                                &
-       'buoyancy parameter for heat','',                                       &
-       t_avg, d_bl, default_streams, '',routinename)
-
-  DO k = 2, bl_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = vq(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'vq',                                                &
-       'buoyancy parameter for moisture','',                                   &
-       t_avg, d_bl, default_streams, '',routinename)
-
-  DO k = 2, bl_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = - gh(i, j, k)                                  &
-                                  / MAX( gm(i, j, k), 1.0e-10 )
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'grad_ri',                                           &
-       'gradient Richardson number','',                                        &
-       t_avg, d_bl, default_streams, '',routinename)
-
-END IF ! L_SCMDiags(SCMDiag_bl) / model_type
-
 
 IF (BL_diag%l_elm) THEN
   DO k = 2, tke_levels

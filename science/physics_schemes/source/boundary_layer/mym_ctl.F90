@@ -33,7 +33,7 @@
 !---------------------------------------------------------------------
 MODULE mym_ctl_mod
 
-USE um_types, ONLY: real_umphys, real_eps
+USE um_types, ONLY: real_umphys
 
 IMPLICIT NONE
 
@@ -42,31 +42,26 @@ CONTAINS
 
 SUBROUTINE mym_ctl(                                                            &
 ! IN levels/switches
-      bl_levels, levflag, nSCMDpkgs,L_SCMDiags,                                &
-      BL_diag, cycleno,                                                        &
+      bl_levels, levflag,                                                      &
+      BL_diag,                                                                 &
 ! IN fields
       z_uv,z_tq, u_p, v_p, qw, tl, t, q, qcl, qcf, bq_gb, bt_gb,               &
       rho_mix, rho_wet_tq, fqw, ftl,                                           &
-      dtldzm, dqwdzm, dudz, dvdz, dbdz, dvdzm,                                 &
+      dtldzm, dqwdzm, dudz, dvdz, dbdz, dvdzm, delta_smag,                     &
       p_theta_levels, p_half, u_s, fb_surf, pstar,                             &
 ! INOUT fields
       e_trb, tsq_trb, qsq_trb, cov_trb, rhokm, rhokh, zhpar_shcu,              &
 ! OUT fields
-      rhogamu, rhogamv, rhogamt, rhogamq)
+      visc_m, visc_h, rhogamu, rhogamv, rhogamt, rhogamq)
 
 USE atm_fields_bounds_mod, ONLY: tdims, pdims, tdims_l, tdims_s
 USE bl_diags_mod, ONLY: strnewbldiag
-USE dynamics_input_mod, ONLY: numcycles
 USE gen_phys_inputs_mod, ONLY: l_mr_physics
-USE level_heights_mod, ONLY:                                                   &
-  r_theta_levels, r_rho_levels
 USE mym_option_mod, ONLY: l_my_condense, l_shcu_buoy,                          &
       my_lowest_pd_surf, tke_levels, l_my_initialize, l_my_ini_zero,           &
       my_ini_dbdz_min, l_3dtke
-USE missing_data_mod, ONLY: rmdi
 USE parkind1, ONLY: jprb, jpim
 USE planet_constants_mod, ONLY: vkman, kappa, pref, c_virtual, g
-USE turb_diff_ctl_mod, ONLY: visc_m, visc_h
 USE yomhook, ONLY: lhook, dr_hook
 USE mym_calcphi_mod, ONLY: mym_calcphi
 USE mym_condensation_mod, ONLY: mym_condensation
@@ -81,11 +76,10 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) ::                                                         &
    bl_levels,                                                                  &
                   ! Max. no. of "boundary" levels
-   levflag,                                                                    &
+   levflag
                   ! to indicate the level of the MY model
                   ! 2: level 2.5
                   ! 3: level 3
-   cycleno        ! Iteration number (EG outer loop)
 
 REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
@@ -169,6 +163,8 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
          2:bl_levels),                                                         &
                   ! Modulus of wind shear at theta levels.
                   ! (:,:,K) represents the value on theta level K-1
+   delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
+                  ! IN delta_x used by Smagorinsky
    p_theta_levels(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,         &
                   0:bl_levels+1),                                              &
                   ! Pressure on theta levels (Pa)
@@ -182,13 +178,6 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                   ! density (m^2/s^3)
    pstar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
                   ! surface pressure
-
-! Additional variables for SCM diagnostics which are dummy in full UM
-INTEGER, INTENT(IN) ::                                                         &
-   nSCMDpkgs             ! No of SCM diagnostics packages
-
-LOGICAL, INTENT(IN) ::                                                         &
-   L_SCMDiags(nSCMDpkgs) ! Logicals for SCM diagnostics packages
 
 ! Intent INOUT variables
 REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
@@ -226,6 +215,8 @@ TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
 
 ! Intent Out Variables
 REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
+   visc_m(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels),&
+   visc_h(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,bl_levels),&
    rhogamu(tdims_s%i_start:tdims_s%i_end,                                      &
            tdims_s%j_start:tdims_s%j_end,2:bl_levels),                         &
                   ! Counter gradient terms for TAUX
@@ -342,7 +333,7 @@ IF (l_first) THEN
   ! IF the first value of e_trb has been set to be missing by the
   ! reconfiguration, the initialization for the whole domain
   ! is essential.
-  IF (l_my_initialize .OR. ABS(e_trb(1, 1, 1) - rmdi) < real_eps) THEN
+  IF (l_my_initialize) THEN
     IF (l_my_ini_zero) THEN
       DO k = 1, bl_levels
         DO j = tdims%j_start, tdims%j_end
@@ -374,7 +365,7 @@ IF (l_first) THEN
                   bl_levels,                                                   &
       ! IN fields
                   z_uv, z_tq, dbdz_l, dvdzm, dtldzm, dqwdzm,                   &
-                  fqw, ftl, u_s, r_mosurf, fb_surf,                            &
+                  fqw, ftl, u_s, r_mosurf, fb_surf, delta_smag,                &
       ! INOUT fields
                   e_trb, tsq_trb, qsq_trb, cov_trb)
 
@@ -390,22 +381,16 @@ IF (l_first) THEN
         END DO
       END DO
     END IF  ! test if l_my_ini_zero
-  END IF  ! test if l_my_initialize .OR. e_trb == rmdi
+  END IF  ! test if l_my_initialize
 
-  IF (l_shcu_buoy) THEN
+  IF (l_shcu_buoy .and. l_my_initialize) THEN
     DO j = tdims%j_start, tdims%j_end
       DO i = tdims%i_start, tdims%i_end
-        IF (ABS(zhpar_shcu(i, j) - rmdi) < real_eps) THEN
-          ! if missing has been set by the reconfiguration,
-          ! it is replaced with z_tq(tke_levels-1).
-          zhpar_shcu(i,j) = z_tq(i,j,tke_levels-1)
-        END IF
+        zhpar_shcu(i,j) = z_tq(i,j,tke_levels-1)
       END DO
     END DO
   END IF
-  ! need to initialise variables on every cycle as they will have been
-  ! reset to mdi
-  IF (cycleno == numcycles) l_first = .FALSE.
+  l_first = .FALSE.
 END IF  ! IF L_FIRST
 
 ! copy e_trb to qke (qke = 2 e_trb)
@@ -434,7 +419,7 @@ END DO
 IF (l_my_condense .OR. l_shcu_buoy) THEN
   CALL mym_condensation(                                                       &
   ! IN levels/switches
-            bl_levels, levflag, nSCMDpkgs,L_SCMDiags,                          &
+            bl_levels, levflag,                                                &
             BL_diag,                                                           &
   ! IN fields
             qw, tl, t, p_theta_levels, tsq_trb, qsq_trb, cov_trb,              &
@@ -495,7 +480,7 @@ IF (l_shcu_buoy) THEN
 
   CALL mym_shcu_buoy(                                                          &
   ! IN levels/switches
-             bl_levels,nSCMDpkgs,L_SCMDiags,                                   &
+             bl_levels,                                                        &
              BL_diag,                                                          &
   ! IN fields
              fb_surf, u_s, pstar,                                              &
@@ -526,11 +511,11 @@ END IF
 
 CALL mym_turbulence(                                                           &
 ! IN levels/switches
-        bl_levels, levflag, nSCMDpkgs,L_SCMDiags, BL_diag,                     &
+        bl_levels, levflag, BL_diag,                                           &
 ! IN fields
         z_uv, z_tq,                                                            &
         vq, vt, gtr, fqw, ftl, wb_ng,                                          &
-        dbdz_l, dtldzm, dqwdzm, dvdzm, dudz, dvdz,                             &
+        dbdz_l, dtldzm, dqwdzm, dvdzm, dudz, dvdz, delta_smag,                 &
         r_mosurf, u_s, fb_surf, pmz, phh,                                      &
 ! INOUT fields
         qke, tsq_trb, qsq_trb, cov_trb, rhokm, rhokh_tq,                       &
@@ -590,12 +575,12 @@ END DO
 DO k = 2, tke_levels - 1
   DO j = tdims%j_start, tdims%j_end
     DO i = tdims%i_start, tdims%i_end
-      r_weight1 = 1.0 / (r_theta_levels(i,j,k) -                               &
-                                   r_theta_levels(i,j, k-1))
-      weight2 = (r_theta_levels(i,j,k) -                                       &
-                          r_rho_levels(i,j,k)) * r_weight1
-      weight3 = (r_rho_levels(i,j,k) -                                         &
-                          r_theta_levels(i,j,k-1)) * r_weight1
+      r_weight1 = 1.0 / (z_tq(i,j,k) -                                         &
+                                   z_tq(i,j, k-1))
+      weight2 = (z_tq(i,j,k) -                                                 &
+                          z_uv(i,j,k)) * r_weight1
+      weight3 = (z_uv(i,j,k) -                                                 &
+                          z_tq(i,j,k-1)) * r_weight1
       rhokh(i,j,k) =                                                           &
                           weight3 * rhokh_tq(i,j,k+1)                          &
                          +weight2 * rhokh_tq(i,j,k)
@@ -612,15 +597,26 @@ END DO
 k = tke_levels
 DO j = tdims%j_start, tdims%j_end
   DO i = tdims%i_start, tdims%i_end
-    r_weight1 = 1.0 / (r_theta_levels(i,j,k) -                                 &
-                                 r_theta_levels(i,j, k-1))
-    weight2 = (r_theta_levels(i,j,k) -                                         &
-                        r_rho_levels(i,j,k)) * r_weight1
-    weight3 = (r_rho_levels(i,j,k) -                                           &
-                        r_theta_levels(i,j,k-1)) * r_weight1
+    r_weight1 = 1.0 / (z_tq(i,j,k) -                                           &
+                                 z_tq(i,j, k-1))
+    weight2 = (z_tq(i,j,k) -                                                   &
+                        z_uv(i,j,k)) * r_weight1
+    weight3 = (z_uv(i,j,k) -                                                   &
+                        z_tq(i,j,k-1)) * r_weight1
     rhokh(i,j,k) = weight2 * rhokh_tq(i,j,k)
     rhogamt(i,j,k) = weight2 * rhogamt_tq(i,j,k)
     rhogamq(i,j,k) = weight2 * rhogamq_tq(i,j,k)
+  END DO
+END DO
+
+! Above tke_levels, fluxes should be zero.
+DO k = tke_levels + 1, bl_levels
+  DO j = tdims%j_start, tdims%j_end
+    DO i = tdims%i_start, tdims%i_end
+      rhokh(i, j, k) = 0.0
+      rhogamt(i, j, k) = 0.0
+      rhogamq(i, j, k) = 0.0
+    END DO
   END DO
 END DO
 
@@ -636,17 +632,6 @@ IF (l_mr_physics) THEN
     END DO
   END DO
 END IF
-
-! Above tke_levels, fluxes should be zero.
-DO k = tke_levels + 1, bl_levels
-  DO j = tdims%j_start, tdims%j_end
-    DO i = tdims%i_start, tdims%i_end
-      rhokh(i, j, k) = 0.0
-      rhogamt(i, j, k) = 0.0
-      rhogamq(i, j, k) = 0.0
-    END DO
-  END DO
-END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

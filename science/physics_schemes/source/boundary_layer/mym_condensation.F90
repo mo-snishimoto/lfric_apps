@@ -48,13 +48,13 @@ CONTAINS
 
 SUBROUTINE mym_condensation(                                                   &
 ! IN levels/switches
-      bl_levels, levflag, nSCMDpkgs,L_SCMDiags, BL_diag,                       &
+      bl_levels, levflag, BL_diag,                                             &
 ! IN fields
       qw, tl, t, p_theta_levels, tsq, qsq, cov,                                &
 ! OUT fields
       vt, vq, q1, cld, ql)
 
-USE atm_fields_bounds_mod, ONLY: tdims, ScmRowLen, ScmRow
+USE atm_fields_bounds_mod, ONLY: tdims
 USE bl_diags_mod, ONLY: strnewbldiag
 USE conversions_mod, ONLY: pi
 USE gen_phys_inputs_mod, ONLY: l_mr_physics
@@ -64,9 +64,6 @@ USE planet_constants_mod, ONLY:                                                &
 USE water_constants_mod, ONLY: lc
 
 USE model_domain_mod, ONLY: model_type, mt_single_column
-USE s_scmop_mod,      ONLY: default_streams,                                   &
-                            t_avg, d_bl, scmdiag_bl
-USE scmoutput_mod,    ONLY: scmoutput
 
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
@@ -105,13 +102,6 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
                   ! Correlation between thetal and qw
                   ! (thetal'qw') defined on theta levels K-1
 
-! Additional variables for SCM diagnostics which are dummy in full UM
-INTEGER, INTENT(IN) ::  nSCMDpkgs
-                  ! No of SCM diagnostics packages
-
-LOGICAL, INTENT(IN) ::  L_SCMDiags(nSCMDpkgs)
-                  ! Logicals for SCM diagnostics packages
-
 !  Declaration of BL diagnostics.
 TYPE (strnewbldiag), INTENT(IN OUT) :: BL_diag
 
@@ -135,7 +125,7 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
 
 ! Local Variables
 INTEGER ::                                                                     &
-   i, j, k, iScm, jScm
+   i, j, k
                   ! loop indexes
 REAL(KIND=real_umphys) ::                                                      &
    rr2,                                                                        &
@@ -171,9 +161,6 @@ REAL(KIND=real_umphys) ::                                                      &
                   ! work variable
    rac
                   ! work variable
-
-REAL(KIND=real_umphys) :: TmpScm3d(ScmRowLen,ScmRow,bl_levels)
-                                             ! work array for scmoutput
 
 REAL(KIND=real_umphys) ::                                                      &
    rice(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
@@ -238,13 +225,13 @@ REAL(KIND=real_umphys), PARAMETER ::                                           &
                   ! factor to set the upper limit for sgm
 
 CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'MYM_CONDENSATION'
-                  ! for scmoutput
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
 rr2 = 1.0 / SQRT(2.0)
 rrp = 1.0 / SQRT(2.0 * pi)
 
@@ -431,85 +418,6 @@ IF (BL_diag%l_sgm_trb) THEN
     END DO
   END DO
 END IF
-
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( l_scmdiags(scmdiag_bl) .AND.                                              &
-     model_type == mt_single_column ) THEN
-
-  !   Note that diagnostics here has only "tke_levels" levels.
-  !   It is necessary to copy them to an array which has "bl_levels"
-
-!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE)                               &
-!$OMP PRIVATE(i, j, k)                                                         &
-!$OMP SHARED(bl_levels, ScmRow, ScmRowLen, TmpScm3d)
-  DO k = 1, bl_levels
-    DO j = 1, ScmRow
-      DO i = 1, ScmRowLen
-        TmpScm3d(i,j,k) = 0.0
-      END DO
-    END DO
-  END DO
-!$OMP END PARALLEL DO
-
-  !  for cld
-  DO k=1, tke_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = cld(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'cf_trb',                                            &
-       'cloud fraction by TKE scheme',' ',                                     &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  !  for ql
-  DO k=1, tke_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = ql(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'ql_trb',                                            &
-       'condensed water by TKE scheme','kg/kg',                                &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  !  for sgm
-  DO k=1, tke_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = sgm(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'sgm_trb',                                           &
-       'PDF width by TKE scheme',' ',                                          &
-       t_avg,d_bl,default_streams,'',routinename)
-
-  !  for Q1
-  DO k=1, tke_levels
-    DO j=tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i=tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm,jScm,k) = q1(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'Q1',                                                &
-       'normalized excessive moisture',' ',                                    &
-       t_avg,d_bl,default_streams,'',routinename)
-
-END IF ! scmdiag_bl / model_type
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

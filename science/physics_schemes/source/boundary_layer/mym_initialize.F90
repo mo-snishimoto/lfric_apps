@@ -48,7 +48,7 @@ SUBROUTINE mym_initialize(                                                     &
       bl_levels,                                                               &
 ! IN fields
       z_uv, z_tq, dbdz, dvdzm, dtldzm, dqwdzm,                                 &
-      fqw, ftl, u_s, r_mosurf, fb_surf,                                        &
+      fqw, ftl, u_s, r_mosurf, fb_surf, delta_smag,                            &
 ! INOUT fields
       e_trb, tsq, qsq, cov)
 
@@ -114,9 +114,11 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
    u_s(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                   &
                   ! Surface friction velocity
    r_mosurf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),              &
-   fb_surf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
+   fb_surf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),               &
                   ! Surface flux buoyancy over
                   ! density (m^2/s^3)
+   delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
+                  ! IN delta_x used by Smagorinsky
 
 ! Intent INOUT Variables
 REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
@@ -287,6 +289,12 @@ END DO
 CALL mym_level2(                                                               &
       bl_levels, dbdz, dvdzm, gm, gh, sm, sh)
 
+do j = tdims%j_start, tdims%j_end
+  do i = tdims%i_start, tdims%i_end
+    qke_nohalo(i, j, 1) = 0.0
+  end do
+end do
+
 DO k = 2, tke_levels
   DO j = tdims%j_start, tdims%j_end
     DO i = tdims%i_start, tdims%i_end
@@ -355,7 +363,7 @@ END IF  ! IF MY_lowest_pd_surf
 DO ll = 1, my3_itr_ini
   CALL mym_length(                                                             &
         tdims%i_end, tdims%j_end, 0, 0, bl_levels,                             &
-        qke_nohalo, z_uv, z_tq, dbdz, r_mosurf, fb_surf,                       &
+        qke_nohalo, z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf,           &
         qkw, el)
 
   DO k = 2, tke_levels
@@ -370,11 +378,11 @@ DO ll = 1, my3_itr_ini
   END DO
 
   CALL mym_diff_matcoef(                                                       &
-        bl_levels, coef_trbvar_diff_tke, dfm,                                  &
+        bl_levels, coef_trbvar_diff_tke, z_uv, z_tq, dfm,                      &
         aa_qke, bb_qke, cc_qke)
 
   CALL mym_diff_matcoef(                                                       &
-        bl_levels, coef_trbvar_diff, dfm,                                      &
+        bl_levels, coef_trbvar_diff, z_uv, z_tq, dfm,                          &
         aa_oth, bb_oth, cc_oth)
 
   DO k = k_start, tke_levels
@@ -405,7 +413,7 @@ DO ll = 1, my3_itr_ini
           aa_qke(i, j, k) = - aa_qke(i, j, k)
           bb_qke(i, j, k) = - bb_qke(i, j, k)                                  &
                             + 2.0 * qkw(i, j, k) / (b1 * el(i, j, k))
-          bb_qke(i, j, k) = SIGN(MAX(ABS(bb_qke(i, j, k)), 1.0e-20),           &
+          bb_qke(i, j, k) = SIGN(MAX(ABS(bb_qke(i, j, k)), 1.0e-20_real_umphys),&
                                     bb_qke(i, j, k))
 
           cc_qke(i, j, k) = - cc_qke(i, j, k)
@@ -414,7 +422,7 @@ DO ll = 1, my3_itr_ini
           aa_oth(i, j, k) = - aa_oth(i, j, k)
           bb_oth(i, j, k) = - bb_oth(i, j, k)                                  &
                             + 2.0 * qkw(i, j, k) / (b2 * el(i, j, k))
-          bb_oth(i, j, k) = SIGN(MAX(ABS(bb_oth(i, j, k)), 1.0e-20),           &
+          bb_oth(i, j, k) = SIGN(MAX(ABS(bb_oth(i, j, k)), 1.0e-20_real_umphys),&
                                     bb_oth(i, j, k))
           cc_oth(i, j, k) = - cc_oth(i, j, k)
 

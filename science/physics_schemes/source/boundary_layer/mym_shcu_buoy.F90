@@ -25,7 +25,7 @@ CONTAINS
 
 SUBROUTINE mym_shcu_buoy(                                                      &
 ! IN levels/switches
-                     bl_levels,nSCMDpkgs, L_SCMDiags,                          &
+                     bl_levels,                                                &
                      BL_diag,                                                  &
 ! IN fields
                      fb_surf, ustar, pstar,                                    &
@@ -34,8 +34,7 @@ SUBROUTINE mym_shcu_buoy(                                                      &
 ! INOUT / OUT fields
                      zhpar,frac, wb_ng)
 
-USE atm_fields_bounds_mod, ONLY: tdims, pdims, tdims_l,                        &
-                                 ScmRowLen, ScmRow
+USE atm_fields_bounds_mod, only: tdims, pdims, tdims_l
 USE bl_diags_mod, ONLY: strnewbldiag
 USE conversions_mod, ONLY: pi
 USE gen_phys_inputs_mod, ONLY: l_mr_physics
@@ -44,8 +43,6 @@ USE mym_option_mod, ONLY: tke_levels, wb_ng_max, shcu_levels
 USE mym_const_mod, ONLY: one_third
 USE planet_constants_mod, ONLY: r, repsilon, pref, kappa, c_virtual,           &
     recip_kappa, g, lcrcp, ls, lsrcp, grcp
-USE s_scmop_mod,   ONLY: default_streams, t_avg, d_bl, d_sl, scmdiag_bl
-USE scmoutput_mod, ONLY: scmoutput
 USE timestep_mod,  ONLY: timestep
 USE water_constants_mod, ONLY: lc, tm
 
@@ -107,12 +104,6 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
               ! function
               ! (:,:,K) is located at theta level K-1
 
-! Additional variables for SCM diagnostics which are dummy in full UM
-INTEGER, INTENT(IN) ::                                                         &
-   nSCMDpkgs             ! No of SCM diagnostics packages
-LOGICAL, INTENT(IN) ::                                                         &
-   L_SCMDiags(nSCMDpkgs) ! Logicals for SCM diagnostics packages
-
 REAL(KIND=real_umphys), INTENT(IN OUT) ::                                      &
    zhpar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
              ! boundary layer height evaluated with Richardson Number
@@ -133,10 +124,8 @@ REAL(KIND=real_umphys), INTENT(OUT) ::                                         &
 ! local variables
 
 CHARACTER(LEN=*), PARAMETER ::  RoutineName = 'MYM_SHCU_BUOY'
-REAL(KIND=real_umphys) :: TmpScm3d(ScmRowLen,ScmRow,bl_levels)
-                                             ! work array for scmoutput
 
-INTEGER :: i, j, k, iScm, jScm,                                                &
+INTEGER :: i, j, k,                                                            &
    k_par(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
                  ! level for start of parcel ascent
    ktpar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
@@ -417,9 +406,14 @@ DO j = tdims%j_start, tdims%j_end
       ! Calculate temperature and pressure of lifting condensation level
       ! using approximations from Bolton (1980)
       !-----------------------------------------------------------------------
-      vap_press = q(i,j,k_par(i,j)) *                                          &
-            p_theta_levels(i,j,k_par(i,j)) / ( 100.0*repsilon )
-      IF (vap_press >= 0.0) THEN
+      if ( l_mr_physics ) then
+        vap_press = 0.01*q(i,j,k_par(i,j)) *                                   &
+              p_theta_levels(i,j,k_par(i,j)) / ( repsilon+q(i,j,k_par(i,j)) )
+      else
+        vap_press = q(i,j,k_par(i,j)) *                                        &
+              p_theta_levels(i,j,k_par(i,j)) / ( 100.0*repsilon )
+      end if
+      IF (vap_press > 0.0) THEN
         t_lcl = 55.0 + 2840.0 / ( 3.5*LOG(t(i,j,k_par(i,j)))                   &
                    - LOG(vap_press) - 4.805 )
         p_lcl(i,j) =  p_theta_levels(i,j,k_par(i,j)) *                         &
@@ -900,70 +894,6 @@ IF (BL_diag%l_wb_ng) THEN
       END DO
     END DO
   END DO
-END IF
-
-!-----------------------------------------------------------------------
-!     SCM Boundary Layer Diagnostics Package
-!-----------------------------------------------------------------------
-IF ( L_SCMDiags(scmdiag_bl) .AND.                                              &
-     (model_type == mt_single_column) ) THEN
-
-  !   Note that diagnostics here has only "shcu_levels" levels.
-  !   It is necessary to copy them to an array which has "bl_levels"
-
-!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE)                               &
-!$OMP PRIVATE(i, j, k)                                                         &
-!$OMP SHARED(bl_levels, ScmRow, ScmRowLen, TmpScm3d)
-  DO k = 1, bl_levels
-    DO j = 1, ScmRow
-      DO i = 1, ScmRowLen
-        TmpScm3d(i,j,k) = 0.0
-      END DO
-    END DO
-  END DO
-!$OMP END PARALLEL DO
-
-  ! for WB_NG
-  DO k = 1, shcu_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm, jScm, k) = wb_ng(i, j, k)
-      END DO
-    END DO
-  END DO
-
-  CALL scmoutput(TmpScm3d,'WB_NG',                                             &
-       'Non-gradinet buoyancy flux',' ',                                       &
-       t_avg, d_bl, default_streams, '', routinename)
-
-  ! for FRAC
-  DO k = 1, shcu_levels
-    DO j = tdims%j_start, tdims%j_end
-      jScm = j - tdims%j_start + 1
-      DO i = tdims%i_start, tdims%i_end
-        iScm = i - tdims%i_start + 1
-        TmpScm3d(iScm, jScm, k) = frac(i, j, k)
-      END DO
-    END DO
-  END DO
-  CALL scmoutput(TmpScm3d,'CF_NL',                                             &
-       'non-local cloud fraction',' ',                                         &
-       t_avg, d_bl, default_streams, '', routinename)
-
-  CALL scmoutput(cape,'CAPE_scu',                                              &
-       'CAPE',' ',                                                             &
-       t_avg, d_sl, default_streams, '', routinename)
-
-  CALL scmoutput(z_lcl,'zlcl_scu',                                             &
-       'Z_LCL',' ',                                                            &
-       t_avg, d_sl, default_streams, '', routinename)
-
-  CALL scmoutput(zhpar,'zhpar_scu',                                            &
-       'ZHPAR',' ',                                                            &
-       t_avg, d_sl, default_streams, '', routinename)
-
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

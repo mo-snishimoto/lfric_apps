@@ -23,7 +23,7 @@ CONTAINS
 
 SUBROUTINE ddf_initialize(                                                     &
       bl_levels,                                                               &
-      z_uv, z_tq, dbdz, dvdzm, r_mosurf, fb_surf, u_s, h_pbl,                  &
+      z_uv, z_tq, dbdz, dvdzm, delta_smag, r_mosurf, fb_surf, u_s, h_pbl,      &
       e_trb)
 
 USE atm_fields_bounds_mod, ONLY: tdims, pdims, tdims_s
@@ -62,6 +62,8 @@ REAL(KIND=real_umphys), INTENT(IN) ::                                          &
          2:bl_levels),                                                         &
                   ! Modulus of wind shear at theta levels.
                   ! (:,:,K) repserents the value on theta level K-1
+   delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
+                  ! IN delta_x used by Smagorinsky
    r_mosurf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),              &
                   ! reciprocal of Monin-Obkhov length
    fb_surf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),               &
@@ -175,7 +177,7 @@ itr_ini = tke_levels + 1
 DO ll = 1, itr_ini
   CALL ddf_mix_length(                                                         &
     tdims%i_end, tdims%j_end, 0, 0, bl_levels,                                 &
-    z_uv, z_tq, dbdz, r_mosurf, fb_surf, h_pbl, e_trb,                         &
+    z_uv, z_tq, dbdz, delta_smag, r_mosurf, fb_surf, h_pbl, e_trb,             &
     elm, coef_ce, ekw)
 
   DO k = 2, tke_levels
@@ -190,7 +192,7 @@ DO ll = 1, itr_ini
   END DO
 
   CALL mym_diff_matcoef(                                                       &
-        bl_levels, diff_fact, dfm, aa, bb, cc)
+        bl_levels, diff_fact, z_uv, z_tq, dfm, aa, bb, cc)
 
   DO k = 2, tke_levels
     DO j = tdims%j_start, tdims%j_end
@@ -206,7 +208,7 @@ DO ll = 1, itr_ini
           bb(i, j, k) = - bb(i, j, k)                                          &
                   + ekw(i, j, k) * coef_ce(i, j, k)                            &
                                      / MAX(elm(i, j, k), 1.0e-20)
-          bb(i, j, k) = SIGN(MAX(ABS(bb(i, j, k)), 1.0e-20),                   &
+          bb(i, j, k) = SIGN(MAX(ABS(bb(i, j, k)), 1.0e-20_real_umphys),       &
                                     bb(i, j, k))
 
           cc(i, j, k) = - cc(i, j, k)
