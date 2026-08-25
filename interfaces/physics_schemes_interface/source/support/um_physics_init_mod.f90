@@ -30,6 +30,12 @@ module um_physics_init_mod
                                         us_am_in => us_am
 
   use blayer_config_mod,         only : bl_scheme, bl_scheme_9c, bl_scheme_1a, &
+                                        blending_9c, blending_9c_3d_smag,      &
+                                        blending_9c_2d_smag,                   &
+                                        blending_9c_blend_smag_fa,             &
+                                        blending_9c_blend_1dbl_fa,             &
+                                        blending_1a, blending_1a_3d_smag,      &
+                                        blending_1a_3dte_mk1,                  &
                                         tke_levels_in => tke_levels,           &
                                         bdy_tke_in => bdy_tke, bdy_tke_my3,    &
                                         bdy_tke_my25, bdy_tke_deardorff,       &
@@ -214,14 +220,6 @@ module um_physics_init_mod
                                                 heavy_rain_evap_fac
 
   use mixing_config_mod,         only : smagorinsky,                   &
-                                        mixing_method_9c => method_9c, &
-                                        method_9c_3d_smag,             &
-                                        method_9c_2d_smag,             &
-                                        method_9c_blend_smag_fa,       &
-                                        method_9c_blend_1dbl_fa,       &
-                                        mixing_method_1a => method_1a, &
-                                        method_1a_3d_smag,             &
-                                        method_1a_3dte_mk1,            &
                                         mix_factor_in => mix_factor,   &
                                         leonard_term,                  &
                                         leonard_tke
@@ -1717,23 +1715,23 @@ contains
       if ( bl_scheme == bl_scheme_9c ) then
 
         ! Options which are bespoke to the choice of scheme
-        select case ( mixing_method_9c )
+        select case ( blending_9c )
 
-        case( method_9c_3d_smag )
+        case( blending_9c_3d_smag )
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = off
           non_local_bl      = off
           ng_stress         = off
-        case( method_9c_2d_smag )
+        case( blending_9c_2d_smag )
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .false.
           blending_option   = off
-        case( method_9c_blend_smag_fa )
+        case( blending_9c_blend_smag_fa )
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = blend_allpoints
-        case( method_9c_blend_1dbl_fa )
+        case( blending_9c_blend_1dbl_fa )
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = blend_gridindep_fa
@@ -1741,14 +1739,14 @@ contains
 
       else if ( bl_scheme == bl_scheme_1a ) then
 
-        select case ( mixing_method_1a )
+        select case ( blending_1a )
 
-        case( method_1a_3d_smag )
+        case( blending_1a_3d_smag )
           l_3dtke           = .false.
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = off
-        case( method_1a_3dte_mk1 )
+        case( blending_1a_3dte_mk1 )
           l_3dtke           = .true.
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .false.

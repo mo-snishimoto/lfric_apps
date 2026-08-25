@@ -36,33 +36,39 @@ contains
     type(field_collection_type), intent(in) :: turbulence_fields
 
     ! Prognostic fields
-    type( field_type ), pointer :: zh             => null()
-    type( field_type ), pointer :: z_lcl          => null()
-    type( integer_field_type ), pointer :: ntml    => null()
-    type( integer_field_type ), pointer :: cumulus => null()
-    type( field_type ), pointer :: wvar           => null()
-    type( field_type ), pointer :: heat_flux_bl   => null()
-    type( field_type ), pointer :: moist_flux_bl  => null()
-    type( field_type ), pointer :: tke_bl         => null()
-    type( field_type ), pointer :: tsq_bl         => null()
-    type( field_type ), pointer :: qsq_bl         => null()
-    type( field_type ), pointer :: cov_bl         => null()
-    type( field_type ), pointer :: zhpar_shcu     => null()
-    type( field_type ), pointer :: rhokm_bl       => null()
-    type( field_type ), pointer :: rhokh_bl       => null()
-    type( field_type ), pointer :: dtrdz_tq_bl    => null()
-    type( field_type ), pointer :: zhsc           => null()
-    type( integer_field_type ), pointer :: level_ent => null()
-    type( integer_field_type ), pointer :: level_ent_dsc => null()
-    type( field_type ), pointer :: ent_we_lim     => null()
-    type( field_type ), pointer :: ent_t_frac     => null()
-    type( field_type ), pointer :: ent_zrzi       => null()
-    type( field_type ), pointer :: ent_we_lim_dsc => null()
-    type( field_type ), pointer :: ent_t_frac_dsc => null()
-    type( field_type ), pointer :: ent_zrzi_dsc   => null()
+    type( field_type ), pointer :: zh
+    type( field_type ), pointer :: z_lcl
+    type( integer_field_type ), pointer :: ntml
+    type( integer_field_type ), pointer :: cumulus
+    type( field_type ), pointer :: wvar
+    type( field_type ), pointer :: heat_flux_bl
+    type( field_type ), pointer :: moist_flux_bl
+    type( field_type ), pointer :: tke_bl
+    type( field_type ), pointer :: tsq_bl
+    type( field_type ), pointer :: qsq_bl
+    type( field_type ), pointer :: cov_bl
+    type( field_type ), pointer :: zhpar_shcu
+    type( field_type ), pointer :: rhokm_bl
+    type( field_type ), pointer :: rhokh_bl
+    type( field_type ), pointer :: dtrdz_tq_bl
+    type( field_type ), pointer :: zhsc
+    type( integer_field_type ), pointer :: level_ent
+    type( integer_field_type ), pointer :: level_ent_dsc
+    type( field_type ), pointer :: ent_we_lim
+    type( field_type ), pointer :: ent_t_frac
+    type( field_type ), pointer :: ent_zrzi
+    type( field_type ), pointer :: ent_we_lim_dsc
+    type( field_type ), pointer :: ent_t_frac_dsc
+    type( field_type ), pointer :: ent_zrzi_dsc
     type( field_type ), pointer :: dsldzm
     type( field_type ), pointer :: mix_len_bm
     type( field_type ), pointer :: gradrinr
+
+    nullify( zh, z_lcl, ntml, cumulus, wvar, heat_flux_bl, moist_flux_bl,      &
+             tke_bl, tsq_bl, qsq_bl, cov_bl, zhpar_shcu, rhokm_bl, rhokh_bl,   &
+             dtrdz_tq_bl, zhsc, level_ent, level_ent_dsc, ent_we_lim,          &
+             ent_t_frac, ent_zrzi, ent_we_lim_dsc, ent_t_frac_dsc,             &
+             ent_zrzi_dsc, dsldzm, mix_len_bm, gradrinr )
 
     call turbulence_fields%get_field('zh', zh)
     call turbulence_fields%get_field('z_lcl', z_lcl)
