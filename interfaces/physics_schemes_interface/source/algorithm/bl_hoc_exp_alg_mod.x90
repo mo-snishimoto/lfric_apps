@@ -5,7 +5,7 @@
 !-------------------------------------------------------------------------------
 !> @brief Interface to the UM High Order Turbulence Closure Scheme.
 
-module bl_exp1a_alg_mod
+module bl_hoc_exp_alg_mod
 
   use config_mod,           only: config_type
   use constants_mod,        only: i_def, r_def, l_def
@@ -41,13 +41,13 @@ module bl_exp1a_alg_mod
   use print_field_stats_alg_mod, only: print_field_stats_alg
 
   ! xios output
-  use bl_exp1a_diags_mod, only: initialise_diags_for_bl_exp1a, &
-                                output_diags_for_bl_exp1a
+  use bl_hoc_exp_diags_mod, only: initialise_diags_for_bl_hoc_exp, &
+                                  output_diags_for_bl_hoc_exp
 
   implicit none
 
   private
-  public bl_exp1a_alg
+  public bl_hoc_exp_alg
 
 contains
 
@@ -71,17 +71,17 @@ contains
   !>@param[out]    leonard_klm_tke     Leonard term coefficient for momentum
   !>@param[out]    leonard_klh_tke     Leonard term coefficient for heat
   !>@param[in]     model_clock         Time in the model
-  subroutine bl_exp1a_alg(config, theta, rho, exner, mr_n,                &
-                          derived_fields,                                 &
-                          microphysics_fields, orography_fields,          &
-                          turbulence_fields, convection_fields,           &
-                          cloud_fields, surface_fields,                   &
-                          leonard_klm_tke, leonard_klh_tke,               &
-                          model_clock)
+  subroutine bl_hoc_exp_alg(config, theta, rho, exner, mr_n,                &
+                            derived_fields,                                 &
+                            microphysics_fields, orography_fields,          &
+                            turbulence_fields, convection_fields,           &
+                            cloud_fields, surface_fields,                   &
+                            leonard_klm_tke, leonard_klh_tke,               &
+                            model_clock)
 
-    use bl_exp1a_kernel_mod, only: bl_exp1a_kernel_type
+    use bl_hoc_exp_kernel_mod, only: bl_hoc_exp_kernel_type
     use interp_edge_kernel_mod, only: interp_edge_kernel_type
-    use bl_exp1a_du_kernel_mod, only: bl_exp1a_du_kernel_type
+    use bl_hoc_exp_du_kernel_mod, only: bl_hoc_exp_du_kernel_type
     implicit none
 
     type(config_type), intent(in) :: config
@@ -321,11 +321,12 @@ contains
     dz_wth           => get_dz_at_wtheta(config, mesh)
 
     ! Initialise diagnostics
-    call initialise_diags_for_bl_exp1a( master_length,                         &
-                                        rhogamu_bl, rhogamv_bl,                &
-                                        rhogamt_bl, rhogamq_bl,                &
-                                        tke_shr_prod, tke_boy_prod, tke_dissp, &
-                                        sm25, sh25, dbdz, dvdzm )
+    call initialise_diags_for_bl_hoc_exp( master_length,                       &
+                                          rhogamu_bl, rhogamv_bl,              &
+                                          rhogamt_bl, rhogamq_bl,              &
+                                          tke_shr_prod, tke_boy_prod,          &
+                                          tke_dissp,                           &
+                                          sm25, sh25, dbdz, dvdzm )
 
     ! Fields for interpolation to cell faces
     call u_physics%copy_field_properties(rhogam_w2)
@@ -350,38 +351,40 @@ contains
     ! Switch UM to running i-first on whole domain
     call um_sizes_init(ncells)
     ! Call explicit BL scheme
-    call invoke(bl_exp1a_kernel_type( theta, rho, rho_in_wth, wetrho_in_wth,   &
-                                      exner, exner_in_wth, u_in_w3, v_in_w3,   &
-                                      w_in_wth, mr_n(imr_v),                   &
-                                      mr_n(imr_cl), mr_ice, height_w3,         &
-                                      height_wth, dz_wth, rdz_w3, dtrdz_wth,   &
-                                      shear, delta, zh, ntml,                  &
-                                      cumulus, tile_fraction, sd_orog,         &
-                                      peak_to_trough_orog,                     &
-                                      silhouette_area_orog,                    &
-                                      tile_temperature,                        &
-                                      cf_bulk, cf_liquid,                      &
-                                      tnuc, tnuc_nlcl,                         &
-                                      visc_m, visc_h,                          &
-                                      dw_bl, rhokm_bl, surf_interp, rhokh_bl,  &
-                                      tke_bl, tsq_bl, qsq_bl, cov_bl,          &
-                                      zhpar_shcu,                              &
-                                      rhogamu_w3, rhogamv_w3,                  &
-                                      leonard_klm_tke, leonard_klh_tke,        &
-                                      bq_bl, bt_bl,                            &
-                                      moist_flux_bl, heat_flux_bl, dtrdz_tq_bl,&
-                                      fd_taux, fd_tauy, sea_u_current_ptr,     &
-                                      sea_v_current_ptr, master_length,        &
-                                      gradrinr, rhogamu_bl, rhogamv_bl,        &
-                                      rhogamt_bl, rhogamq_bl,                  &
-                                      tke_shr_prod, tke_boy_prod, tke_dissp,   &
-                                      sm25, sh25, dbdz, dvdzm,                 &
-                                      z0m_eff, ustar, z_lcl,                   &
-                                      inv_depth, qcl_at_inv_top, shallow_flag, &
-                                      uw0_flux, vw0_flux, lcl_height,          &
-                                      parcel_top, level_parcel_top, wstar,     &
-                                      thv_flux, parcel_buoyancy, qsat_at_lcl,  &
-                                      bl_type_ind),                            &
+    call invoke(bl_hoc_exp_kernel_type( theta, rho, rho_in_wth, wetrho_in_wth, &
+                                        exner, exner_in_wth, u_in_w3, v_in_w3, &
+                                        w_in_wth, mr_n(imr_v),                 &
+                                        mr_n(imr_cl), mr_ice, height_w3,       &
+                                        height_wth, dz_wth, rdz_w3, dtrdz_wth, &
+                                        shear, delta, zh, ntml,                &
+                                        cumulus, tile_fraction, sd_orog,       &
+                                        peak_to_trough_orog,                   &
+                                        silhouette_area_orog,                  &
+                                        tile_temperature,                      &
+                                        cf_bulk, cf_liquid,                    &
+                                        tnuc, tnuc_nlcl,                       &
+                                        visc_m, visc_h,                        &
+                                        dw_bl, rhokm_bl, surf_interp, rhokh_bl,&
+                                        tke_bl, tsq_bl, qsq_bl, cov_bl,        &
+                                        zhpar_shcu,                            &
+                                        rhogamu_w3, rhogamv_w3,                &
+                                        leonard_klm_tke, leonard_klh_tke,      &
+                                        bq_bl, bt_bl,                          &
+                                        moist_flux_bl, heat_flux_bl,           &
+                                        dtrdz_tq_bl,                           &
+                                        fd_taux, fd_tauy, sea_u_current_ptr,   &
+                                        sea_v_current_ptr, master_length,      &
+                                        gradrinr, rhogamu_bl, rhogamv_bl,      &
+                                        rhogamt_bl, rhogamq_bl,                &
+                                        tke_shr_prod, tke_boy_prod, tke_dissp, &
+                                        sm25, sh25, dbdz, dvdzm,               &
+                                        z0m_eff, ustar, z_lcl,                 &
+                                        inv_depth, qcl_at_inv_top,             &
+                                        shallow_flag,                          &
+                                        uw0_flux, vw0_flux, lcl_height,        &
+                                        parcel_top, level_parcel_top, wstar,   &
+                                        thv_flux, parcel_buoyancy, qsat_at_lcl,&
+                                        bl_type_ind),                          &
                 ! Interpolate scalar variables from cell center to cell face
                 setval_c(rhokm_w2,       0.0_r_def),                           &
                 interp_edge_kernel_type(sw_off, bl_levels,                     &
@@ -415,12 +418,12 @@ contains
       if ( LPROF ) call start_timing( id, 'bl.explicit' )
     end if
 
-    call invoke(bl_exp1a_du_kernel_type(4_i_def,                               &
-                                        tau_w2, tau_land_w2, tau_ssi_w2,       &
-                                        rhokm_w2, rdz_fd1, u_physics,          &
-                                        surf_interp_w2, rhogam_w2, fd_tau_w2,  &
-                                        sea_current_w2_ptr,                    &
-                                        face_selector_ew, face_selector_ns) )
+    call invoke(bl_hoc_exp_du_kernel_type(4_i_def,                             &
+                                          tau_w2, tau_land_w2, tau_ssi_w2,     &
+                                          rhokm_w2, rdz_fd1, u_physics,        &
+                                          surf_interp_w2, rhogam_w2, fd_tau_w2,&
+                                          sea_current_w2_ptr,                  &
+                                          face_selector_ew, face_selector_ns) )
 
     if (l_calc_tau_at_p) then
       call dz_wth%copy_field_properties(rdz_wth)
@@ -435,18 +438,20 @@ contains
                   setval_c(taux, 0.0_r_def),                                   &
                   setval_c(tauy, 0.0_r_def),                                   &
       ! Calculate explicit momentum diffusion at cell centres
-                  bl_exp1a_du_kernel_type(1_i_def,                             &
-                                          taux, taux_land, taux_ssi,           &
-                                          rhokm_bl, rdz_wth, u_in_w3,          &
-                                          surf_interp, rhogamu_w3, fd_taux,    &
-                                          sea_u_current_ptr,                   &
-                                          face_selector_ew, face_selector_ns), &
-                  bl_exp1a_du_kernel_type(1_i_def,                             &
-                                          tauy, tauy_land, tauy_ssi,           &
-                                          rhokm_bl, rdz_wth, v_in_w3,          &
-                                          surf_interp, rhogamv_w3, fd_tauy,    &
-                                          sea_v_current_ptr,                   &
-                                          face_selector_ew, face_selector_ns) )
+                  bl_hoc_exp_du_kernel_type(1_i_def,                           &
+                                            taux, taux_land, taux_ssi,         &
+                                            rhokm_bl, rdz_wth, u_in_w3,        &
+                                            surf_interp, rhogamu_w3, fd_taux,  &
+                                            sea_u_current_ptr,                 &
+                                            face_selector_ew,                  &
+                                            face_selector_ns),                 &
+                  bl_hoc_exp_du_kernel_type(1_i_def,                           &
+                                            tauy, tauy_land, tauy_ssi,         &
+                                            rhokm_bl, rdz_wth, v_in_w3,        &
+                                            surf_interp, rhogamv_w3, fd_tauy,  &
+                                            sea_v_current_ptr,                 &
+                                            face_selector_ew,                  &
+                                            face_selector_ns) )
     end if
 
     if ( LPROF ) call stop_timing( id, 'bl.explicit' )
@@ -461,21 +466,21 @@ contains
     ! output BL diagnostics
     if (config%io%write_diag() .and. config%io%use_xios_io()) then
 
-      call output_diags_for_bl_exp1a(ntml, cumulus, bl_type_ind,               &
-                                     tke_bl, tsq_bl, qsq_bl, cov_bl,           &
-                                     master_length, gradrinr,                  &
-                                     rhokm_bl, rhokh_bl,                       &
-                                     rhogamu_bl, rhogamv_bl,                   &
-                                     rhogamt_bl, rhogamq_bl,                   &
-                                     tke_shr_prod, tke_boy_prod, tke_dissp,    &
-                                     sm25, sh25, dbdz, dvdzm,                  &
-                                     dtrdz_tq_bl, rdz_w3                       &
-                                     )
+      call output_diags_for_bl_hoc_exp(ntml, cumulus, bl_type_ind,             &
+                                       tke_bl, tsq_bl, qsq_bl, cov_bl,         &
+                                       master_length, gradrinr,                &
+                                       rhokm_bl, rhokh_bl,                     &
+                                       rhogamu_bl, rhogamv_bl,                 &
+                                       rhogamt_bl, rhogamq_bl,                 &
+                                       tke_shr_prod, tke_boy_prod, tke_dissp,  &
+                                       sm25, sh25, dbdz, dvdzm,                &
+                                       dtrdz_tq_bl, rdz_w3                     &
+                                       )
 
     end if
 
     nullify( mesh )
 
-  end subroutine bl_exp1a_alg
+  end subroutine bl_hoc_exp_alg
 
-end module bl_exp1a_alg_mod
+end module bl_hoc_exp_alg_mod

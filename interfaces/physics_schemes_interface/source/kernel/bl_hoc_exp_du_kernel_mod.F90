@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !> @brief Calculate explicit estimate of turbulent momentum diffusion
 
-module bl_exp1a_du_kernel_mod
+module bl_hoc_exp_du_kernel_mod
 
   use kernel_mod,               only: kernel_type
   use argument_mod,             only: arg_type, func_type,                    &
@@ -31,7 +31,7 @@ module bl_exp1a_du_kernel_mod
   ! Public types
   !----------------------------------------------------------------------------
   !> Kernel metadata type.
-  type, public, extends(kernel_type) :: bl_exp1a_du_kernel_type
+  type, public, extends(kernel_type) :: bl_hoc_exp_du_kernel_type
     private
     type(arg_type) :: meta_args(13) = (/                                       &
         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &! nfaces
@@ -50,13 +50,13 @@ module bl_exp1a_du_kernel_mod
     /)
     integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass :: bl_exp1a_du_code
-  end type bl_exp1a_du_kernel_type
+    procedure, nopass :: bl_hoc_exp_du_code
+  end type bl_hoc_exp_du_kernel_type
 
   !----------------------------------------------------------------------------
   ! Contained functions/subroutines
   !----------------------------------------------------------------------------
-  public bl_exp1a_du_code
+  public bl_hoc_exp_du_code
 
 contains
 
@@ -99,41 +99,41 @@ contains
   !> @param[in]     ndf_w3_2d      Num of DoFs for 2D W3 per cell
   !> @param[in]     undf_w3_2d     Num of DoFs for this partition for 2D W3
   !> @param[in]     map_w3_2d      Map for 2D W3
-  subroutine bl_exp1a_du_code(nlayers,          &
-                              nfaces,           &
-                              tau,              &
-                              tau_land,         &
-                              tau_ssi,          &
-                              rhokm,            &
-                              rdz,              &
-                              u_physics,        &
-                              surf_interp,      &
-                              rhogam,           &
-                              fd_tau,           &
-                              sea_current,      &
-                              face_selector_ew, &
-                              face_selector_ns, &
-                              ndf_half,         &
-                              undf_half,        &
-                              map_half,         &
-                              ndf_2d,           &
-                              undf_2d,          &
-                              map_2d,           &
-                              ndf_full,         &
-                              undf_full,        &
-                              map_full,         &
-                              ndf_rdz,          &
-                              undf_rdz,         &
-                              map_rdz,          &
-                              ndf_surf,         &
-                              undf_surf,        &
-                              map_surf,         &
-                              ndf_curr,         &
-                              undf_curr,        &
-                              map_curr,         &
-                              ndf_w3_2d,        &
-                              undf_w3_2d,       &
-                              map_w3_2d )
+  subroutine bl_hoc_exp_du_code(nlayers,          &
+                                nfaces,           &
+                                tau,              &
+                                tau_land,         &
+                                tau_ssi,          &
+                                rhokm,            &
+                                rdz,              &
+                                u_physics,        &
+                                surf_interp,      &
+                                rhogam,           &
+                                fd_tau,           &
+                                sea_current,      &
+                                face_selector_ew, &
+                                face_selector_ns, &
+                                ndf_half,         &
+                                undf_half,        &
+                                map_half,         &
+                                ndf_2d,           &
+                                undf_2d,          &
+                                map_2d,           &
+                                ndf_full,         &
+                                undf_full,        &
+                                map_full,         &
+                                ndf_rdz,          &
+                                undf_rdz,         &
+                                map_rdz,          &
+                                ndf_surf,         &
+                                undf_surf,        &
+                                map_surf,         &
+                                ndf_curr,         &
+                                undf_curr,        &
+                                map_curr,         &
+                                ndf_w3_2d,        &
+                                undf_w3_2d,       &
+                                map_w3_2d )
 
     !---------------------------------------
     ! UM modules containing switches or global constants
@@ -241,6 +241,6 @@ contains
 
     end do ! loop over df
 
-  end subroutine bl_exp1a_du_code
+  end subroutine bl_hoc_exp_du_code
 
-end module bl_exp1a_du_kernel_mod
+end module bl_hoc_exp_du_kernel_mod

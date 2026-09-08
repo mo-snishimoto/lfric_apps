@@ -29,13 +29,15 @@ module um_physics_init_mod
                                         horiz_d_in => horiz_d,                 &
                                         us_am_in => us_am
 
-  use blayer_config_mod,         only : bl_scheme, bl_scheme_9c, bl_scheme_1a, &
-                                        blending_9c, blending_9c_3d_smag,      &
-                                        blending_9c_2d_smag,                   &
-                                        blending_9c_blend_smag_fa,             &
-                                        blending_9c_blend_1dbl_fa,             &
-                                        blending_1a, blending_1a_3d_smag,      &
-                                        blending_1a_3dte_mk1,                  &
+  use blayer_config_mod,         only : bl_scheme, bl_scheme_Kprof,            &
+                                        bl_scheme_HoC,                         &
+                                        blending_Kprof,                        &
+                                        blending_Kprof_3d_smag,                &
+                                        blending_Kprof_2d_smag,                &
+                                        blending_Kprof_blend_smag_fa,          &
+                                        blending_Kprof_blend_1dbl_fa,          &
+                                        blending_HoC, blending_HoC_3d_smag,    &
+                                        blending_HoC_3dte_mk1,                 &
                                         tke_levels_in => tke_levels,           &
                                         bdy_tke_in => bdy_tke, bdy_tke_my3,    &
                                         bdy_tke_my25, bdy_tke_deardorff,       &
@@ -48,7 +50,7 @@ module um_physics_init_mod
                                         my_lowest_pd_surf_bh91,                &
                                         my_prod_adj,                           &
                                         local_above_tkelvs,                    &
-                                        my_force_initialize,                   &
+                                        my_force_initialise,                   &
                                         my_ini_dbdz_min_in => my_ini_dbdz_min, &
                                         use_l_sq,                              &
                                         my_simeq_solver,                       &
@@ -749,7 +751,7 @@ contains
         l_skyview = .true.
       end if
 
-      if (bl_scheme == bl_scheme_9c) then
+      if (bl_scheme == bl_scheme_Kprof) then
         i_bl_vn = i_bl_vn_9c
 
         a_ent_shr_nml = real(a_ent_shr, r_bl)
@@ -847,7 +849,7 @@ contains
         l_converge_ga       = l_converge_ga_in
         num_sweeps_bflux    = num_sweeps_bflux_in
 
-      else if (bl_scheme == bl_scheme_1a) then
+      else if (bl_scheme == bl_scheme_HoC) then
         i_bl_vn = i_bl_vn_1a
 
         ishear_bl = off
@@ -882,13 +884,18 @@ contains
         end if
 
         l_local_above_tkelvs = local_above_tkelvs
-        if (my_force_initialize) then
-          l_my_initialize = .true.
+        if (checkpoint_read) then
+          ! In the continuation run, initial fields of prognostic variables
+          ! are always initialised from checkpoint file.
+          l_my_initialize = .false.
         else
-          if (checkpoint_read .or. &
-              init_option == init_option_checkpoint_dump) then
-            l_my_initialize = .false.
+          if (init_option == init_option_checkpoint_dump) then
+            ! If initialised from LFRic, initial fields are read or diagnosed,
+            ! depending on the switch
+            l_my_initialize = my_force_initialise
           else
+            ! It is currently unavailable to read initial fields from file
+            ! for other init options, so always diagnosed.
             l_my_initialize = .true.
           end if
         end if
@@ -1712,41 +1719,41 @@ contains
       turb_startlev_vert  = 2
       turb_endlev_vert    = bl_levels
 
-      if ( bl_scheme == bl_scheme_9c ) then
+      if ( bl_scheme == bl_scheme_Kprof ) then
 
         ! Options which are bespoke to the choice of scheme
-        select case ( blending_9c )
+        select case ( blending_Kprof )
 
-        case( blending_9c_3d_smag )
+        case( blending_Kprof_3d_smag )
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = off
           non_local_bl      = off
           ng_stress         = off
-        case( blending_9c_2d_smag )
+        case( blending_Kprof_2d_smag )
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .false.
           blending_option   = off
-        case( blending_9c_blend_smag_fa )
+        case( blending_Kprof_blend_smag_fa )
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = blend_allpoints
-        case( blending_9c_blend_1dbl_fa )
+        case( blending_Kprof_blend_1dbl_fa )
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = blend_gridindep_fa
         end select
 
-      else if ( bl_scheme == bl_scheme_1a ) then
+      else if ( bl_scheme == bl_scheme_HoC ) then
 
-        select case ( blending_1a )
+        select case ( blending_HoC )
 
-        case( blending_1a_3d_smag )
+        case( blending_HoC_3d_smag )
           l_3dtke           = .false.
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = off
-        case( blending_1a_3dte_mk1 )
+        case( blending_HoC_3dte_mk1 )
           l_3dtke           = .true.
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .false.

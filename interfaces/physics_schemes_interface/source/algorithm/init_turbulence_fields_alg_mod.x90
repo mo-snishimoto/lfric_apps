@@ -27,7 +27,7 @@ contains
   !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
   subroutine init_turbulence_fields_alg(turbulence_fields)
 
-    use blayer_config_mod, only: bl_scheme, bl_scheme_9c, bl_scheme_1a, &
+    use blayer_config_mod, only: bl_scheme, bl_scheme_Kprof, bl_scheme_HoC, &
                                  bdy_tke, bdy_tke_deardorff, shcu_buoy
 
     implicit none
@@ -90,11 +90,11 @@ contains
     call turbulence_fields%get_field('ent_t_frac_dsc', ent_t_frac_dsc)
     call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
 
-    if (bl_scheme == bl_scheme_9c) then
+    if (bl_scheme == bl_scheme_Kprof) then
       call turbulence_fields%get_field('wvar', wvar)
       call turbulence_fields%get_field('dsldzm', dsldzm)
       call turbulence_fields%get_field('mix_len_bm', mix_len_bm)
-    else if (bl_scheme == bl_scheme_1a) then
+    else if (bl_scheme == bl_scheme_HoC) then
       call turbulence_fields%get_field('rhokm_bl', rhokm_bl)
       if (bdy_tke /= bdy_tke_deardorff) then
         call turbulence_fields%get_field('tsq_bl', tsq_bl)
@@ -128,11 +128,11 @@ contains
                  setval_c(ent_zrzi_dsc,   0.0_r_def), &
                  setval_c(gradrinr,       0.0_r_def) )
  
-    if (bl_scheme == bl_scheme_9c) then
+    if (bl_scheme == bl_scheme_Kprof) then
       call invoke( setval_c(wvar,           0.0_r_def), &
                    setval_c(dsldzm,         0.0_r_def), &
                    setval_c(mix_len_bm,     0.0_r_def) )
-    else if (bl_scheme == bl_scheme_1a) then
+    else if (bl_scheme == bl_scheme_HoC) then
       call invoke( setval_c(rhokm_bl,       0.0_r_def) )
       if (bdy_tke /= bdy_tke_deardorff) then
         call invoke( setval_c(tsq_bl,       0.0_r_def), &

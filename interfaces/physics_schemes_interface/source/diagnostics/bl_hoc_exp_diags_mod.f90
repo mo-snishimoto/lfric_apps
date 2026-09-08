@@ -3,9 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!> @brief Processes diagnostics for bl_exp1a_alg
+!> @brief Processes diagnostics for bl_hoc_exp_alg
 
-module bl_exp1a_diags_mod
+module bl_hoc_exp_diags_mod
 
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
@@ -31,8 +31,8 @@ module bl_exp1a_diags_mod
   logical( l_def ) :: dbdz_flag
   logical( l_def ) :: dvdzm_flag
 
-  public :: initialise_diags_for_bl_exp1a
-  public :: output_diags_for_bl_exp1a
+  public :: initialise_diags_for_bl_hoc_exp
+  public :: output_diags_for_bl_hoc_exp
 
 contains
 
@@ -51,11 +51,12 @@ contains
   !> @param[in,out] sh25          Stability function for scalar
   !> @param[in,out] dbdz          Vertical gradient of buoyancy
   !> @param[in,out] dvdzm         Modulus of wind shear
-  subroutine initialise_diags_for_bl_exp1a( master_length,                     &
-                                            rhogamu_bl, rhogamv_bl,            &
-                                            rhogamt_bl, rhogamq_bl,            &
-                                            tke_shr_prod, tke_boy_prod,        &
-                                            tke_dissp, sm25, sh25, dbdz, dvdzm )
+  subroutine initialise_diags_for_bl_hoc_exp( master_length,                   &
+                                              rhogamu_bl, rhogamv_bl,          &
+                                              rhogamt_bl, rhogamq_bl,          &
+                                              tke_shr_prod, tke_boy_prod,      &
+                                              tke_dissp,                       &
+                                              sm25, sh25, dbdz, dvdzm )
 
     implicit none
 
@@ -91,9 +92,9 @@ contains
 
     if ( LPROF ) call stop_timing( id, 'diags.bl_exp' )
 
-  end subroutine initialise_diags_for_bl_exp1a
+  end subroutine initialise_diags_for_bl_hoc_exp
 
-  !> @brief Output diagnostics from bl_exp1a_alg
+  !> @brief Output diagnostics from bl_hoc_exp_alg
   !> @param[in] ntml              Number of turbulently mixed levels
   !> @param[in] cumulus           Cumulus flag (true/false)
   !> @param[in] bl_type_ind       Diagnosed BL types
@@ -118,15 +119,15 @@ contains
   !> @param[in] dvdzm             Modulus of wind shear
   !> @param[in] dtrdz_tq_bl       dt/(rho*r*r*dz) in wth
   !> @param[in] rdz_tq_bl         1/dz in w3
-  subroutine output_diags_for_bl_exp1a(ntml, cumulus, bl_type_ind,             &
-                                       tke_bl, tsq_bl, qsq_bl, cov_bl,         &
-                                       master_length, gradrinr,                &
-                                       rhokm_bl, rhokh_bl,                     &
-                                       rhogamu_bl, rhogamv_bl,                 &
-                                       rhogamt_bl, rhogamq_bl,                 &
-                                       tke_shr_prod, tke_boy_prod, tke_dissp,  &
-                                       sm25, sh25, dbdz, dvdzm,                &
-                                       dtrdz_tq_bl, rdz_tq_bl)
+  subroutine output_diags_for_bl_hoc_exp(ntml, cumulus, bl_type_ind,           &
+                                         tke_bl, tsq_bl, qsq_bl, cov_bl,       &
+                                         master_length, gradrinr,              &
+                                         rhokm_bl, rhokh_bl,                   &
+                                         rhogamu_bl, rhogamv_bl,               &
+                                         rhogamt_bl, rhogamq_bl,               &
+                                         tke_shr_prod, tke_boy_prod, tke_dissp,&
+                                         sm25, sh25, dbdz, dvdzm,              &
+                                         dtrdz_tq_bl, rdz_tq_bl)
 
     implicit none
 
@@ -199,5 +200,5 @@ contains
 
     if ( LPROF ) call stop_timing( id, 'diags.bl_exp' )
 
-  end subroutine output_diags_for_bl_exp1a
-end module bl_exp1a_diags_mod
+  end subroutine output_diags_for_bl_hoc_exp
+end module bl_hoc_exp_diags_mod

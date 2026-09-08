@@ -78,8 +78,8 @@ module create_physics_prognostics_mod
   use cloud_config_mod,               only : scheme,                            &
                                              scheme_pc2
   use convection_config_mod,          only : cv_scheme, cv_scheme_comorph
-  use blayer_config_mod,              only : bl_scheme, bl_scheme_9c, &
-                                             bl_scheme_1a, bdy_tke, &
+  use blayer_config_mod,              only : bl_scheme, bl_scheme_Kprof, &
+                                             bl_scheme_HoC, bdy_tke, &
                                              bdy_tke_my3, bdy_tke_deardorff, &
                                              adv_turb_field, shcu_buoy
   use external_forcing_config_mod,    only : theta_forcing_nudging,             &
@@ -657,8 +657,8 @@ contains
     call processor%apply(make_spec('level_ent_dsc', main%turbulence, W3, twod=.true., &
         is_int=.true.))
 
-    ! 2D fields, necessary only for 9C scheme
-    is_empty = (bl_scheme == bl_scheme_1a)
+    ! 2D fields, necessary only for Kprof scheme
+    is_empty = (bl_scheme == bl_scheme_HoC)
     call processor%apply(make_spec('zh_nonloc', main%turbulence, W3,           &
         twod=.true., empty = is_empty))
     call processor%apply(make_spec('bl_weight_1dbl', main%turbulence, W3,      &
@@ -714,7 +714,7 @@ contains
         mult='entrainment_levels', twod=.true.))
 
     ! 3D fields, might need checkpointing
-    if (bl_scheme == bl_scheme_1a) then
+    if (bl_scheme == bl_scheme_HoC) then
       checkpoint_flag = .true.
       advection_flag = adv_turb_field
     else
@@ -727,7 +727,7 @@ contains
     ! Fields, necessary only for 1A scheme
 
     ! 2D fields, might need checkpointing
-    if (bl_scheme == bl_scheme_1a .and. shcu_buoy) then
+    if (bl_scheme == bl_scheme_HoC .and. shcu_buoy) then
       checkpoint_flag = .true.
     else
       checkpoint_flag = .false.
@@ -736,7 +736,7 @@ contains
         twod=.true., ckp=checkpoint_flag, empty = (.not. shcu_buoy)))
 
     ! 3D fields, might need checkpointing
-    if (bl_scheme == bl_scheme_1a .and. bdy_tke /= bdy_tke_deardorff) then
+    if (bl_scheme == bl_scheme_HoC .and. bdy_tke /= bdy_tke_deardorff) then
       is_empty = .false.
       ! Checkpointing of tsq, qsq and cov are necessary even in level2.5 scheme
       ! because previous value of those are used in partial condensation scheme.
