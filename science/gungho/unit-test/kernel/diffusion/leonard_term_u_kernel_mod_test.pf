@@ -7,7 +7,7 @@
 module leonard_term_u_kernel_mod_test
 
 
-  use constants_mod,                       only : i_def, r_def
+  use constants_mod,                       only : i_def, r_def, l_def
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size, &
                                                   get_w1_m3x3_q3x3x3_size, &
                                                   get_wtheta_m3x3_q3x3x3_size, &
@@ -95,6 +95,7 @@ contains
     real(r_def), parameter :: dt = 100.0_r_def
     real(r_def), parameter :: tol = 1.0e-10_r_def
     real(r_def), parameter :: dz = 10.0_r_def
+    logical(l_def), parameter :: leonard_fix_w_inc = .true._l_def
     real(r_def) :: answer
 
     integer(i_def) :: icell, i, j, k, df
@@ -212,6 +213,7 @@ contains
                               planet_radius,                         &
                               leonard_kl,                            &
                               dt, nlayers,                           &
+                              leonard_fix_w_inc,                     &
                               ndf_w2, undf_w2, map_w2(:,cell),       &
                               ndf_wt, undf_wt, map_wt(:,cell),       &
                               ndf_w1, undf_w1, map_w1(:,cell),       &

@@ -14,8 +14,8 @@ module leonard_term_u_kernel_mod
                                     GH_READ, GH_WRITE, GH_WRITE,  &
                                     CELL_COLUMN, STENCIL, REGION, &
                                     ANY_DISCONTINUOUS_SPACE_9,    &
-                                    GH_INTEGER
-  use constants_mod,         only : r_def, i_def
+                                    GH_INTEGER, GH_LOGICAL
+  use constants_mod,         only : r_def, i_def, l_def
   use fs_continuity_mod,     only : Wtheta, W2, W1
   use reference_element_mod, only : B
   use kernel_mod,            only : kernel_type
@@ -32,7 +32,7 @@ module leonard_term_u_kernel_mod
 
   type, public, extends(kernel_type) :: leonard_term_u_kernel_type
     private
-    type(arg_type) :: meta_args(14) = (/                                   &
+    type(arg_type) :: meta_args(15) = (/                                   &
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE,   W2),                     &
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  W2, STENCIL(REGION)),      &
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta, STENCIL(REGION)),  &
@@ -47,7 +47,8 @@ module leonard_term_u_kernel_mod
          arg_type(GH_SCALAR, GH_REAL, GH_READ),                            &
          arg_type(GH_SCALAR, GH_REAL, GH_READ),                            &
          arg_type(GH_SCALAR, GH_REAL, GH_READ),                            &
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                          &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                         &
+         arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                          &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -88,6 +89,7 @@ contains
 !! @param[in] leonard_kl  The user-specified Leonard term parameter
 !! @param[in] dt  The model timestep length
 !! @param[in] bl_levels   The number of boundary-layer levels
+!! @param[in] leonard_fix_w_inc   Switch for bug fix of w increment
 !! @param[in] ndf_w2  Number of degrees of freedom per cell for w2 space
 !! @param[in] undf_w2  Number of unique degrees of freedom for w2 space
 !! @param[in] map_w2  Cell dofmap for w2 space
@@ -117,6 +119,7 @@ subroutine leonard_term_u_code( nlayers,                                &
                                  planet_radius,                         &
                                  leonard_kl,                            &
                                  dt, bl_levels,                         &
+                                 leonard_fix_w_inc,                     &
                                  ndf_w2, undf_w2, map_w2,               &
                                  ndf_wt, undf_wt, map_wt,               &
                                  ndf_w1, undf_w1, map_w1,               &
@@ -155,6 +158,7 @@ subroutine leonard_term_u_code( nlayers,                                &
   real(kind=r_def),                      intent(in)    :: planet_radius
   real(kind=r_def),                      intent(in)    :: leonard_kl
   real(kind=r_def),                      intent(in)    :: dt
+  logical(kind=l_def),                   intent(in)    :: leonard_fix_w_inc
 
   ! Internal variables
   integer(kind=i_def) :: k, km, df
@@ -442,9 +446,15 @@ subroutine leonard_term_u_code( nlayers,                                &
 
   ! Add vertical velocity increment to vertical DoFs (5/6) of u_inc
   ! to give the total vector increment in a single field
-  do k = 0, bl_levels
-    u_inc(map_w2(B) + k) = vel_w2v_inc(map_wt(1) + k) * dA_at_w2(map_w2(B)+k)
-  end do
+  if (leonard_fix_w_inc) then
+    do k = 0, bl_levels
+      u_inc(map_w2(B) + k) = vel_w2v_inc(map_wt(1) + k) * dA_at_w2(map_w2(B)+k)
+    end do
+  else
+    do k = 0, bl_levels
+      u_inc(map_w2(B) + k) = vel_w2v_inc(map_wt(1) + k)
+    end do
+  end if
 
 end subroutine leonard_term_u_code
 
