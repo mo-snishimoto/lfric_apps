@@ -19,6 +19,7 @@ module leonard_term_u_kernel_mod
                                             GH_INTEGER
   use constants_mod,                 only : r_def, i_def
   use fs_continuity_mod,             only : Wtheta, W2, W1
+  use reference_element_mod,         only : B
   use kernel_mod,                    only : kernel_type
   use sci_face_selector_support_mod, only : face_from_face_selector
 
@@ -34,7 +35,7 @@ module leonard_term_u_kernel_mod
 
   type, public, extends(kernel_type) :: leonard_term_u_kernel_type
     private
-    type(arg_type) :: meta_args(15) = (/                                       &
+    type(arg_type) :: meta_args(16) = (/                                       &
         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),  &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2,   &
                                                       STENCIL(REGION)),        &
@@ -42,6 +43,7 @@ module leonard_term_u_kernel_mod
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  Wtheta),                     &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W1),                         &
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9,   &
@@ -84,6 +86,7 @@ contains
 !> @param[in] height_w1  Height of w1 space levels above the surface
 !> @param[in] height_w2  Height of w2 space levels above the surface
 !> @param[in] wetrho_in_w2  Density on w2 space levels
+!> @param[in] dA_at_w2  Area of faces at W2 points
 !> @param[in] panel_id  The ID number of the current panel
 !> @param[in] map_pid_stencil_size Size of the panel ID stencil
 !> @param[in] map_pid_stencil Stencil map for the panel ID
@@ -121,6 +124,7 @@ subroutine leonard_term_u_code( nlayers,                                &
                                  height_w1,                             &
                                  height_w2,                             &
                                  wetrho_in_w2,                          &
+                                 dA_at_w2,                              &
                                  panel_id,                              &
                                  map_pid_stencil_size, map_pid_stencil, &
                                  face_selector_ew, face_selector_ns,    &
@@ -163,6 +167,7 @@ subroutine leonard_term_u_code( nlayers,                                &
   real(kind=r_def), dimension(undf_w1),   intent(in)    :: height_w1
   real(kind=r_def), dimension(undf_w2),   intent(in)    :: height_w2
   real(kind=r_def), dimension(undf_w2),   intent(in)    :: wetrho_in_w2
+  real(kind=r_def), dimension(undf_w2),   intent(in)    :: dA_at_w2
   real(kind=r_def), dimension(undf_pid),  intent(in)    :: panel_id
   real(kind=r_def),                       intent(in)    :: planet_radius
   real(kind=r_def),                       intent(in)    :: leonard_kl
@@ -455,7 +460,7 @@ subroutine leonard_term_u_code( nlayers,                                &
   ! Add vertical velocity increment to vertical DoFs (5/6) of u_inc
   ! to give the total vector increment in a single field
   do k = 0, bl_levels
-    u_inc(map_w2(5) + k) = vel_w2v_inc(map_wt(1) + k)
+    u_inc(map_w2(B) + k) = vel_w2v_inc(map_wt(1) + k) * dA_at_w2(map_w2(B)+k)
   end do
 
 end subroutine leonard_term_u_code
