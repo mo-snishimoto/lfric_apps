@@ -173,7 +173,7 @@ contains
     u_inc(:) = 0.0_r_def
     u(:) = 1.0_r_def
     w(:) = 1.0_r_def
-    w_inc(:) = 1.0_r_def
+    w_inc(:) = 0.0_r_def
     dtrdz(:) = 0.001_r_def
     rho(:) = 1.0_r_def
     panel_id = 2.0_r_def
