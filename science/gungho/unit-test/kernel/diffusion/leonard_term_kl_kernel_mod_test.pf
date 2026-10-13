@@ -54,11 +54,7 @@ contains
                               leonard_inc_ice = .false.,         &
                               leonard_inc_with_bl = .false.,     &
                               leonard_term  = .false.,           &
-                              leonard_fix_w_inc = .false.,       &
-                              leonard_kl    = 4.0_r_def,         &
-                              conservative_diffusion = .false.,  &
-                              density_weighted = .false.,        &
-                              max_diff_factor = 1.0_r_def )
+                              leonard_kl    = 4.0_r_def )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &
