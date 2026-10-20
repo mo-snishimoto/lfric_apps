@@ -674,6 +674,9 @@ si_preconditioner='pressure',
 si_tolerance=1.0e-1,
 split_w=.true.,
 /
+&mixing
+w_conversion='simple',
+/
 &orography
 orog_init_option='none',
 orography_order=2,

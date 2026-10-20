@@ -104,7 +104,6 @@ contains
     type( field_type ), pointer :: exner_in_wth
     type( field_type ), pointer :: u_in_w3
     type( field_type ), pointer :: v_in_w3
-    type( field_type ), pointer :: u_physics
     type( field_type ), pointer :: sea_u_current_ptr
     type( field_type ), pointer :: sea_v_current_ptr
     type( field_type ), pointer :: sea_current_w2_ptr
@@ -250,7 +249,6 @@ contains
     call derived_fields%get_field('exner_in_wth', exner_in_wth)
     call derived_fields%get_field('u_in_w3', u_in_w3)
     call derived_fields%get_field('v_in_w3', v_in_w3)
-    call derived_fields%get_field('u_physics', u_physics)
 
     ! Unpack turbulence fields
     call turbulence_fields%get_field('zh', zh)

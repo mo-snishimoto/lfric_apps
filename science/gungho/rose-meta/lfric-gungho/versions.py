@@ -411,3 +411,18 @@ class vn32_t670(MacroUpgrade):
                 )
 
         return config, self.reports
+
+class vn32_t395(MacroUpgrade):
+    """Upgrade macro for ticket #395 by Shusuke Nishimoto."""
+
+    BEFORE_TAG = "vn3.2_t670"
+    AFTER_TAG = "vn3.2_t395"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "w_conversion"], "'simple'"
+        )
+
+        return config, self.reports
+

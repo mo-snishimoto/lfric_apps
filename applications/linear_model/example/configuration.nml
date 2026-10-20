@@ -192,6 +192,7 @@ si_tolerance=1.0e-3,
 split_w=.true.,
 /
 &mixing
+w_conversion='simple',
 leonard_term=.false.,
 smagorinsky=.false.,
 viscosity=.false.,

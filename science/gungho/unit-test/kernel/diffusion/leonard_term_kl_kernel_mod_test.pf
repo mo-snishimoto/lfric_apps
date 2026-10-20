@@ -39,25 +39,27 @@ contains
     use finite_element_config_mod,  only : cellshape_quadrilateral,       &
                                            coord_system_xyz, coord_space_wchi
     use mixing_config_mod,          only : method_3d_smag,                &
-                                           smag_l_calc, smag_l_calc_UseDx
+                                           smag_l_calc_UseDx,             &
+                                           w_conversion_simple
 
     implicit none
 
     class(leonard_term_kl_test_type), intent(inout) :: this
 
-    call feign_mixing_config( viscosity     = .false.,           &
-                              viscosity_mu  = 0.0_r_def,         &
-                              smagorinsky   = .false.,           &
-                              mix_factor    = 0.2_r_def,         &
-                              method        = method_3d_smag,    &
-                              smag_l_calc   = smag_l_calc_UseDx, &
-                              leonard_term  = .false.,           &
-                              leonard_kl    = 4.0_r_def,         &
-                              leonard_inc_ice = .false.,         &
-                              leonard_inc_with_bl = .false.,     &
-                              conservative_diffusion = .false.,  &
-                              density_weighted = .false.,        &
-                              max_diff_factor = 1.0_r_def,       &
+    call feign_mixing_config( viscosity     = .false.,             &
+                              viscosity_mu  = 0.0_r_def,           &
+                              w_conversion  = w_conversion_simple, &
+                              smagorinsky   = .false.,             &
+                              mix_factor    = 0.2_r_def,           &
+                              method        = method_3d_smag,      &
+                              smag_l_calc   = smag_l_calc_UseDx,   &
+                              leonard_term  = .false.,             &
+                              leonard_kl    = 4.0_r_def,           &
+                              leonard_inc_ice = .false.,           &
+                              leonard_inc_with_bl = .false.,       &
+                              conservative_diffusion = .false.,    &
+                              density_weighted = .false.,          &
+                              max_diff_factor = 1.0_r_def,         &
                               fullstress    = .false. )
 
     call feign_finite_element_config(      &
