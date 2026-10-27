@@ -32,6 +32,7 @@ module bl_imp_alg_mod
   use log_mod,                       only: log_event, LOG_LEVEL_DEBUG
   use mesh_mod,                      only: mesh_type
   use physics_mappings_alg_mod,      only: map_physics_winds
+  use convert_w2_wind_alg_mod,       only: convert_w2_wind_alg
   use blayer_config_mod,             only: fric_heating
   use derived_config_mod,            only: l_esm_couple
   use esm_couple_config_mod,         only: l_esm_couple_test
@@ -208,6 +209,7 @@ contains
 
     ! Local variables
     type( field_type ) :: u_physics_star
+    type( field_type ) :: du_physics
     type( field_type ) :: dissip, diss_u, diss_v, diss_w
     type( field_type ) :: wind10m_w2, u10m, v10m, w10m, u10m2, v10m2
     type( field_type ) :: wind10m_neut_w2, pseudotau_w2
@@ -324,8 +326,9 @@ contains
     call tau_ssi_w2%copy_field_properties(wind10m_neut_w2)
     call tau_ssi_w2%copy_field_properties(pseudotau_w2)
     call u_latest%copy_field_properties(u_physics_star)
+    call u_latest%copy_field_properties(du_physics)
 
-    call invoke(setval_c(du_bl, 0.0_r_def),                                    &
+    call invoke(setval_c(du_physics, 0.0_r_def),                               &
                 setval_c(dissip, 0.0_r_def),                                   &
                 setval_c(wind10m_w2, 0.0_r_def),                               &
                 setval_c(wind10m_neut_w2, 0.0_r_def),                          &
@@ -333,7 +336,7 @@ contains
                 X_divideby_Y(u_physics_star, u_latest, dA),                    &
 
                 ! LFRic calculation of du on cell faces
-                bl_imp_du_kernel_type(outer, du_bl, dissip, tau_w2,            &
+                bl_imp_du_kernel_type(outer, du_physics, dissip, tau_w2,       &
                                       wind10m_w2, wind10m_neut_w2,             &
                                       tau_land_w2, tau_ssi_w2, pseudotau_w2,   &
                                       rhokm_w2, rdz, dtrdz, wetrho_in_w2,      &
@@ -342,8 +345,9 @@ contains
                                       height_w1, height_w2,                    &
                                       face_selector_ew, face_selector_ns),     &
                 ! Map the wind back into dynamics quantities
-                inc_X_times_Y(du_bl, dA),                                      &
                 inc_X_times_Y(dissip, dA) )
+
+    call convert_w2_wind_alg(config, du_bl, du_physics, .false._l_def)
 
     call u_physics_star%field_final()
 

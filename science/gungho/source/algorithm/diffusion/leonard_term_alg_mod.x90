@@ -8,7 +8,7 @@
 module leonard_term_alg_mod
 
   use config_mod,                 only: config_type
-  use constants_mod,              only: i_def, r_def
+  use constants_mod,              only: i_def, r_def, l_def
   use field_mod,                  only: field_type
   use field_collection_mod,       only: field_collection_type
   use integer_field_mod,          only: integer_field_type
@@ -23,6 +23,7 @@ module leonard_term_alg_mod
                                         get_face_selector_ew,        &
                                         get_face_selector_ns
   use physics_constants_mod,      only: get_dtrdz_fd2
+  use convert_w2_wind_alg_mod,    only: convert_w2_wind_alg
 
   use mixing_config_mod,          only: leonard_kl
 
@@ -90,6 +91,7 @@ subroutine leonard_term_alg(config,                             &
     type( field_type ), pointer :: wetrho_in_w2       => null()
     type( field_type ), pointer :: wetrho_in_w3       => null()
     type( field_type ), pointer :: w_physics          => null()
+    type( field_type ), pointer :: u_physics
     type( field_type ), pointer :: velocity_w2v       => null()
     type( field_type ), pointer :: dtrdz_tq_bl        => null()
     type( field_type ), pointer :: dtrdz_fd2          => null()
@@ -108,6 +110,8 @@ subroutine leonard_term_alg(config,                             &
     integer(kind=i_def), parameter :: stencil_depth = 1
     integer(tik)       :: id
 
+    ! physical wind increment
+    type( field_type ) :: du_physics
     ! Leonard term parameter
     type( field_type ) :: kl
     ! liquid + ice water potential temperature
@@ -126,6 +130,7 @@ subroutine leonard_term_alg(config,                             &
     call derived_fields%get_field('exner_in_wth', exner_in_wth)
     call derived_fields%get_field('wetrho_in_w2', wetrho_in_w2)
     call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+    call derived_fields%get_field('u_physics',    u_physics)
     call derived_fields%get_field('velocity_w2v', w_physics)
     call derived_fields%get_field('velocity_w2v', velocity_w2v)
 
@@ -143,6 +148,7 @@ subroutine leonard_term_alg(config,                             &
     face_selector_ns => get_face_selector_ns(mesh)
 
     ! Set-up arrays for local fields
+    call u_inc_leonard%copy_field_properties(du_physics)
     call rho%copy_field_properties(kl)
     call theta%copy_field_properties(thetal)
     call theta%copy_field_properties(mt)
@@ -178,9 +184,9 @@ subroutine leonard_term_alg(config,                             &
     ! Flux of horizontal wind:
     !--------------------------------------------------------------------
                  ! Call Leonard term code for winds
-                 setval_c(u_inc_leonard,0.0_r_def),                     &
-                 leonard_term_u_kernel_type(  u_inc_leonard,            &
-                                              u,                        &
+                 setval_c(du_physics, 0.0_r_def),                       &
+                 leonard_term_u_kernel_type(  du_physics,               &
+                                              u_physics,                &
                                               stencil_depth,            &
                                               velocity_w2v,             &
                                               stencil_depth,            &
@@ -217,6 +223,8 @@ subroutine leonard_term_alg(config,                             &
                                               height_w3,                &
                                               planet_radius,            &
                                               bl_levels) )
+
+    call convert_w2_wind_alg(config, u_inc_leonard, du_physics, .false._l_def)
 
     !--------------------------------------------------------------------
     ! Flux of total water content:
