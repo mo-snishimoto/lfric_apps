@@ -83,6 +83,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     type( field_type ), pointer :: wetrho_in_w2       => null()
     type( field_type ), pointer :: wetrho_in_w3       => null()
     type( field_type ), pointer :: u_physics
+    type( field_type ), pointer :: velocity_w2v       => null()
     type( field_type ), pointer :: dtrdz_tq_bl        => null()
     type( field_type ), pointer :: dtrdz_fd2          => null()
     type( field_type ), pointer :: height_w1          => null()
@@ -105,8 +106,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     ! total water content
     type( field_type ) :: mt
     ! vertical velocity
-    type( field_type ), target  :: w_physics
-    type( field_type ), pointer :: w
+    type( field_type ) :: w_physics
     ! w increment
     type( field_type ) :: w_inc_leonard
     ! ice mixing ratio
@@ -121,6 +121,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     call derived_fields%get_field('wetrho_in_w2', wetrho_in_w2)
     call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
     call derived_fields%get_field('u_physics',    u_physics)
+    call derived_fields%get_field('velocity_w2v', velocity_w2v)
 
     ! Unpack turbulence fields
     call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
@@ -140,7 +141,6 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     call theta%copy_field_properties(mt)
     call theta%copy_field_properties(w_inc_leonard)
     call theta%copy_field_properties(mr_ice)
-    w => w_physics
 
     if (leonard_inc_ice) then
       call invoke( setval_X( mr_ice, mr(imr_s)) )
@@ -153,7 +153,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     !--------------------------------------------------------------------
     call invoke( extract_w_kernel_type(w_physics, u_physics),           &
                  leonard_term_kl_kernel_type( kl,                       &
-                                              w_physics,                &
+                                              velocity_w2v,             &
                                               stencil_depth,            &
                                               height_wth,               &
                                               leonard_kl,               &
@@ -164,9 +164,9 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     !--------------------------------------------------------------------
                  ! Call Leonard term code for scalars
                  leonard_term_th_kernel_type( w_inc_leonard,            &
-                                              w,                        &
-                                              stencil_depth,            &
                                               w_physics,                &
+                                              stencil_depth,            &
+                                              velocity_w2v,             &
                                               stencil_depth,            &
                                               dtrdz_tq_bl,              &
                                               kl,                       &
@@ -183,7 +183,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
                  leonard_term_u_kernel_type(  du_physics,               &
                                               u_physics,                &
                                               stencil_depth,            &
-                                              w_physics,                &
+                                              velocity_w2v,             &
                                               stencil_depth,            &
                                               w_inc_leonard,            &
                                               dtrdz_fd2,                &
@@ -209,7 +209,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
                  leonard_term_th_kernel_type( thetal_inc_leonard,       &
                                               thetal,                   &
                                               stencil_depth,            &
-                                              w_physics,                &
+                                              velocity_w2v,             &
                                               stencil_depth,            &
                                               dtrdz_tq_bl,              &
                                               kl,                       &
@@ -231,7 +231,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
                    leonard_term_th_kernel_type( mt_inc_leonard,         &
                                                 mt,                     &
                                                 stencil_depth,          &
-                                                w_physics,              &
+                                                velocity_w2v,           &
                                                 stencil_depth,          &
                                                 dtrdz_tq_bl,            &
                                                 kl,                     &
