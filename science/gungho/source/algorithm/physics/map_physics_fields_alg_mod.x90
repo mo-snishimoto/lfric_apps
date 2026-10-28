@@ -7,13 +7,14 @@
 !>@brief Map fields to spaces required by the FD physics routines
 module map_physics_fields_alg_mod
 
-  use constants_mod,                only: r_def, i_def
+  use constants_mod,                only: r_def, i_def, l_def
   use diagnostic_alg_mod,           only: divergence_diagnostic_alg
   use field_mod,                    only: field_type
   use field_collection_mod,         only: field_collection_type
   use physics_mappings_alg_mod,     only: map_physics_winds,           &
                                           map_physics_scalars,         &
                                           split_wind_alg
+  use convert_w2_wind_alg_mod,      only: convert_w2_wind_alg
   use moist_dyn_mod,                only: num_moist_factors, total_mass
   use sci_extract_w_kernel_mod,     only: extract_w_kernel_type
   use smagorinsky_shear_kernel_mod, only: smagorinsky_shear_kernel_type
@@ -83,6 +84,8 @@ contains
     type( field_type ), pointer :: dx_at_w2 => null()
     type( field_type ), pointer :: panel_id => null()
     type( field_type )          :: divergence
+    type( field_type )          :: dA_at_wth
+    type( field_type )          :: w_physics
 
     type( mesh_type ),  pointer :: mesh => null()
 
@@ -123,9 +126,15 @@ contains
     call derived_fields%get_field('u_physics', u_physics)
     call derived_fields%get_field('velocity_w2v', velocity_w2v)
     ! map dynamics winds into physics space
+    call convert_w2_wind_alg(u_physics, u, .true._l_def)
+    call velocity_w2v%copy_field_properties(dA_at_wth)
+    call velocity_w2v%copy_field_properties(w_physics)
     dA => get_da_at_w2(mesh%get_id())
-    call invoke(         X_divideby_Y(u_physics, u, dA), &
-                extract_w_kernel_type(velocity_w2v, u_physics) )
+    call invoke( extract_w_kernel_type(w_physics, u_physics), &
+                 extract_w_kernel_type(dA_at_wth, dA),        &
+                 extract_w_kernel_type(velocity_w2v, u),      &
+                 inc_X_divideby_Y(velocity_w2v, dA_at_wth) )
+    call w_physics%write_field('w_physics')
 
     call print_field_stats_alg(u_in_w3, LOG_LEVEL_INFO, &
                                printmin=-150.0_r_def, printmax=150.0_r_def)

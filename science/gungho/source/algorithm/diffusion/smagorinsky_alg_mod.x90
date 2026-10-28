@@ -35,6 +35,7 @@ module smagorinsky_alg_mod
   ! Algorithms
   use moisture_conservation_alg_mod,                                           &
                                  only: moisture_conservation_alg
+  use convert_w2_wind_alg_mod,   only: convert_w2_wind_alg
 
   ! Kernels
   use cap_diffusion_coeff_kernel_mod,                                          &
@@ -417,6 +418,7 @@ subroutine smagorinsky_alg(                                                    &
     type(mesh_type),  pointer :: mesh, shifted_mesh
     type(function_space_type), pointer :: w2h_fs, w3_fs
     type(field_type) :: u_physics
+    type(field_type) :: du_physics
     type(field_type) :: visc_m_w3
     type(field_type) :: visc_m_w2h
     type(field_type) :: rho_in_w2h
@@ -448,6 +450,7 @@ subroutine smagorinsky_alg(                                                    &
       detj_at_sh_w2 => get_detj_at_w3_fv( shifted_mesh%get_id() )
 
       call u % copy_field_properties( u_physics )
+      call du % copy_field_properties( du_physics )
       call height_w3 % copy_field_properties( visc_m_w3 )
       call height_w1 % copy_field_properties( uflux_w1 )
       call height_w1 % copy_field_properties( vflux_w1 )
@@ -485,15 +488,17 @@ subroutine smagorinsky_alg(                                                    &
           )                                                                    &
       )
 
+      call convert_w2_wind_alg(u_physics, u, .true._l_def)
+
       ! This invoke must be separated from the former one.
       call invoke(                                                             &
-          X_divideby_Y(u_physics, u, dA_at_w2),                                &
           setval_C(uflux_w3, 0.0_r_def),                                       &
           setval_C(vflux_w3, 0.0_r_def),                                       &
           setval_C(uflux_w1, 0.0_r_def),                                       &
           setval_C(vflux_w1, 0.0_r_def),                                       &
           setval_C(wflux_sh_w2h, 0.0_r_def),                                   &
           setval_C(du, 0.0_r_def),                                             &
+          setval_C(du_physics, 0.0_r_def),                                     &
           diffusion_momentum_flux_kernel_type(                                 &
             uflux_w3, vflux_w3, uflux_w1, vflux_w1, wflux_sh_w2h,              &
             u_physics, smag_stencil_depth,                                     &
@@ -507,16 +512,16 @@ subroutine smagorinsky_alg(                                                    &
             panel_id, smag_stencil_depth                                       &
           ),                                                                   &
           divergence_momentum_flux_kernel_type(                                &
-            du,                                                                &
+            du_physics,                                                        &
             uflux_w3, smag_stencil_depth,                                      &
             vflux_w3, smag_stencil_depth,                                      &
             uflux_w1, vflux_w1, wflux_sh_w2h,                                  &
             detj_at_w2,                                                        &
             rho_in_wth, rho_in_w2h,                                            &
             panel_id, smag_stencil_depth                                       &
-          ),                                                                   &
-          inc_X_times_Y(du, dA_at_w2)                                          &
+          )                                                                    &
       )
+      call convert_w2_wind_alg(du, du_physics, .false._l_def)
     else
       ! Non-conservative Smagorinsky diffusion, using Laplacian directly
       height_w2 => get_height_fv(W2, mesh%get_id())

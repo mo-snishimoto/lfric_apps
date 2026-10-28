@@ -28,6 +28,7 @@
   <field id="u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
   <field id="v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
   <field id="w_in_w3" name="w_in_w3" long_name="upward_air_velocity_at_cell_centres" standard_name="upward_air_velocity" unit="ms-1" grid_ref="half_level_face_grid" />
+  <field id="w_physics" name="w_physics" long_name="upward_air_velocity_in_physics_scheme" unit="ms-1" grid_ref="full_level_face_grid" />
   <field id="velocity_w2v" name="velocity_w2v" long_name="air_velocity_normal_to_vertical_cell_interface" unit="ms-1" grid_ref="full_level_face_grid" />
   <field id="xi1" name="xi1" long_name="eastward_vorticity" unit="s-1" grid_ref="half_level_face_grid" />
   <field id="xi2" name="xi2" long_name="northward_vorticity" unit="s-1" grid_ref="half_level_face_grid" />
