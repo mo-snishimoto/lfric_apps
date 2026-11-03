@@ -20,8 +20,8 @@ module map_physics_fields_alg_mod
   use sci_extract_w_kernel_mod,     only: extract_w_kernel_type
   use smagorinsky_shear_kernel_mod, only: smagorinsky_shear_kernel_type
   use mixing_config_mod,            only: smagorinsky
-  use sci_geometric_constants_mod,  only: get_height_fv, get_panel_id, &
-                                          get_dx_at_w2
+  use sci_geometric_constants_mod,  only: get_da_at_w2, get_height_fv, &
+                                          get_panel_id, get_dx_at_w2
   use fs_continuity_mod,            only: W3, Wtheta
   use mesh_mod,                     only: mesh_type
 
@@ -77,11 +77,13 @@ contains
     type( field_type ), pointer :: u_physics => null()
     type( field_type ), pointer :: velocity_w2v => null()
     type( field_type ), pointer :: shear => null()
+    type( field_type ), pointer :: dA => null()
     type( field_type ), pointer :: height_w3 => null()
     type( field_type ), pointer :: height_wth => null()
     type( field_type ), pointer :: dx_at_w2 => null()
     type( field_type ), pointer :: panel_id => null()
     type( field_type )          :: divergence
+    type( field_type )          :: dA_at_wth
 
     type( mesh_type ),  pointer :: mesh => null()
 
@@ -122,8 +124,12 @@ contains
     call derived_fields%get_field('u_physics', u_physics)
     call derived_fields%get_field('velocity_w2v', velocity_w2v)
     ! map dynamics winds into physics space
+    dA => get_da_at_w2(mesh)
+    call velocity_w2v%copy_field_properties(dA_at_wth)
     call convert_w2_wind_alg(config, u_physics, u, .true._l_def)
-    call invoke( extract_w_kernel_type(velocity_w2v, u_physics) )
+    call invoke( extract_w_kernel_type(dA_at_wth, dA),           &
+                 extract_w_kernel_type(velocity_w2v, u),         &
+                 inc_X_divideby_Y(velocity_w2v, dA_at_wth) )
 
     call print_field_stats_alg(config, u_in_w3, LOG_LEVEL_INFO, &
                                printmin=-150.0_r_def, printmax=150.0_r_def)

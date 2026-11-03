@@ -13,7 +13,7 @@ module convert_w2_wind_alg_mod
   use field_mod,                         only: field_type
   use integer_field_mod,                 only: integer_field_type
   use sci_geometric_constants_mod,       only: get_coordinates,      &
-                                               get_panel_id,         &
+                                               get_detj_at_w2_fv,    &
                                                get_face_selector_ew, &
                                                get_face_selector_ns
   use sci_geometric_constants_mod,       only: get_dA_at_w2
@@ -52,25 +52,20 @@ contains
 
     type(field_type),         pointer :: chi(:)
     type(field_type),         pointer :: dA
-    type(field_type),         pointer :: panel_id
+    type(field_type),         pointer :: detj_w2
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
     type(mesh_type),          pointer :: mesh
 
-    integer(i_def) :: coord_system, geometry, topology
-    real(r_def)    :: scaled_radius
+    integer(i_def) :: coord_system
 
     mesh             => u_in % get_mesh()
     chi              => get_coordinates( mesh )
     dA               => get_dA_at_w2( mesh )
-    panel_id         => get_panel_id( mesh )
     face_selector_ew => get_face_selector_ew( mesh )
     face_selector_ns => get_face_selector_ns( mesh )
 
     coord_system  = config % finite_element % coord_system()
-    geometry      = config % base_mesh % geometry()
-    topology      = config % base_mesh % topology()
-    scaled_radius = config % planet % scaled_radius()
 
     select case (config % mixing % w_conversion())
     case (w_conversion_simple)
@@ -95,14 +90,12 @@ contains
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
 
-      call invoke( convert_w2_wind_strict_kernel_type(u_out, u_in, dA,         &
-                                                      chi(1), chi(2), chi(3),  &
-                                                      panel_id,                &
+      detj_w2 => get_detj_at_w2_fv(mesh)
+
+      call invoke( convert_w2_wind_strict_kernel_type(u_out, u_in,             &
+                                                      detj_w2, dA, chi(3),     &
                                                       face_selector_ew,        &
                                                       face_selector_ns,        &
-                                                      coord_system,            &
-                                                      geometry, topology,      &
-                                                      scaled_radius,           &
                                                       prog_to_phys) )
     case default
       write(log_scratch_space,'(A)')                                    &
@@ -110,7 +103,7 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
 
-    nullify(chi, dA, panel_id, face_selector_ew, face_selector_ns, mesh)
+    nullify(chi, detj_w2, dA, face_selector_ew, face_selector_ns, mesh)
 
   end subroutine convert_w2_wind_alg
 
